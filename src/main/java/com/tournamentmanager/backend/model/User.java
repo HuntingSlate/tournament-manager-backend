@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.util.Set;
+
 @Entity
 @Table(name = "player")
 @Data
@@ -27,5 +29,11 @@ public class User {
 
     @Column(length = 50)
     private String fullName;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PlayerTeam> playerTeams;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PlayerLink> playerLinks;
 
 }
