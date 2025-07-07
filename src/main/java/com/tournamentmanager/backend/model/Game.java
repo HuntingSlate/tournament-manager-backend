@@ -21,4 +21,7 @@ public class Game {
     @Column(nullable = false, length = 50, unique = true)
     private String name;
 
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PlayerStatistics> playerStatistics;
+
 }
