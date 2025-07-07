@@ -3,6 +3,7 @@ package com.tournamentmanager.backend.controller;
 import com.tournamentmanager.backend.dto.TournamentRequest;
 import com.tournamentmanager.backend.dto.TournamentResponse;
 import com.tournamentmanager.backend.service.TournamentService;
+import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +19,11 @@ import java.util.List;
 public class TournamentController {
 
     private final TournamentService tournamentService;
+    private final UserService userService;
 
-    public TournamentController(TournamentService tournamentService) {
+    public TournamentController(TournamentService tournamentService, UserService userService) {
         this.tournamentService = tournamentService;
+        this.userService = userService;
     }
 
     @PostMapping
@@ -67,9 +70,6 @@ public class TournamentController {
     }
 
     private Long getUserIdFromUserDetails(UserDetails currentUser) {
-
-        return tournamentService.userRepository.findByEmail(currentUser.getUsername())
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found in database."))
-                .getId();
+        return userService.getUserIdByEmail(currentUser.getUsername());
     }
 }

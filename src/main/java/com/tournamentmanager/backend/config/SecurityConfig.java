@@ -3,6 +3,7 @@ package com.tournamentmanager.backend.config;
 import com.tournamentmanager.backend.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,6 +41,17 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/tournaments/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/teams/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/tournaments").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/tournaments/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/tournaments/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/teams").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/teams/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/teams/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/teams/**/members/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/teams/**/members/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/teams/**/apply/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
