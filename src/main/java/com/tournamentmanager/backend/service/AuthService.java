@@ -30,10 +30,10 @@ public class AuthService {
     }
 
     public AuthResponse register(RegisterRequest registerRequest) {
-        if (userRepository.findByEmail(registerRequest.getEmail()) != null) {
+        if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
             throw new RuntimeException("Email is already taken!");
         }
-        if (userRepository.findByNickname(registerRequest.getNickname()) != null) {
+        if (userRepository.findByNickname(registerRequest.getNickname()).isPresent()) {
             throw new RuntimeException("Nickname is already taken!");
         }
 
@@ -66,7 +66,8 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String token = jwtTokenProvider.generateToken(authentication);
-        User user = userRepository.findByEmail(loginRequest.getEmail());
+        User user = userRepository.findByEmail(loginRequest.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found."));
         return new AuthResponse(token, user.getId(), user.getEmail(), user.getNickname());
     }
 }
