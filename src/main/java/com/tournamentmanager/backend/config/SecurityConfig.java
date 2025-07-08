@@ -40,6 +40,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
+                        // Publiczne endpointy
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/tournaments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/teams/**").permitAll()
@@ -47,30 +48,32 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/statistics/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/search").permitAll()
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
 
                         // User:
-                        .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/users/me/profile").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/users/me/links").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/me/links/{playerLinkId}").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
 
                         // Tournaments:
                         .requestMatchers(HttpMethod.POST, "/api/tournaments").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/tournaments/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/tournaments/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/tournaments/**/applications").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/tournaments/**/applications/**/status").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/tournaments/{tournamentId}/applications").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/tournaments/{tournamentId}/applications/{applicationId}/status").authenticated()
 
-                        // Team:
+
+                        // Teams:
                         .requestMatchers(HttpMethod.POST, "/api/teams").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/teams/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/teams/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/teams/**/members/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/teams/**/members/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/teams/{teamId}/members/{memberId}").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/teams/{teamId}/members/{memberId}").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/teams/**/apply/**").authenticated()
 
-                        // Match:
+                        // Matches:
                         .requestMatchers(HttpMethod.POST, "/api/matches").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/matches/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/matches/**").authenticated()
