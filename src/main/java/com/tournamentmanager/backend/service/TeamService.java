@@ -4,21 +4,13 @@ import com.tournamentmanager.backend.dto.LinkResponse;
 import com.tournamentmanager.backend.dto.TeamMemberResponse;
 import com.tournamentmanager.backend.dto.TeamRequest;
 import com.tournamentmanager.backend.dto.TeamResponse;
-import com.tournamentmanager.backend.model.Game;
-import com.tournamentmanager.backend.model.Team;
-import com.tournamentmanager.backend.model.User;
-import com.tournamentmanager.backend.model.PlayerTeam;
-import com.tournamentmanager.backend.model.Tournament;
-import com.tournamentmanager.backend.model.TeamLink;
-import com.tournamentmanager.backend.repository.GameRepository;
-import com.tournamentmanager.backend.repository.PlayerTeamRepository;
-import com.tournamentmanager.backend.repository.TeamRepository;
-import com.tournamentmanager.backend.repository.TournamentRepository;
-import com.tournamentmanager.backend.repository.UserRepository;
+import com.tournamentmanager.backend.model.*;
+import com.tournamentmanager.backend.repository.*;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -35,14 +27,18 @@ public class TeamService {
     private final PlayerTeamRepository playerTeamRepository;
     private final TournamentRepository tournamentRepository;
 
+    private final TeamApplicationRepository teamApplicationRepository;
+
     public TeamService(TeamRepository teamRepository, GameRepository gameRepository,
                        UserRepository userRepository, PlayerTeamRepository playerTeamRepository,
-                       TournamentRepository tournamentRepository) {
+                       TournamentRepository tournamentRepository,
+                       TeamApplicationRepository teamApplicationRepository) {
         this.teamRepository = teamRepository;
         this.gameRepository = gameRepository;
         this.userRepository = userRepository;
         this.playerTeamRepository = playerTeamRepository;
         this.tournamentRepository = tournamentRepository;
+        this.teamApplicationRepository = teamApplicationRepository;
     }
 
     @Transactional
@@ -177,21 +173,17 @@ public class TeamService {
             throw new RuntimeException("Team's game does not match tournament's game.");
         }
 
-        if (team.getTournaments() != null && team.getTournaments().contains(tournament)) {
-            throw new RuntimeException("Team has already applied or is already part of this tournament.");
+        if (teamApplicationRepository.findByTeamAndTournament(team, tournament).isPresent()) {
+            throw new RuntimeException("Team has already applied to this tournament.");
         }
 
-        if (tournament.getParticipatingTeams() == null) {
-            tournament.setParticipatingTeams(new HashSet<>());
-        }
-        tournament.getParticipatingTeams().add(team);
-        tournamentRepository.save(tournament);
+        TeamApplication newApplication = new TeamApplication();
+        newApplication.setTeam(team);
+        newApplication.setTournament(tournament);
+        newApplication.setApplicationDate(LocalDateTime.now());
+        newApplication.setStatus(TeamApplication.ApplicationStatus.PENDING);
 
-        if (team.getTournaments() == null) {
-            team.setTournaments(new HashSet<>());
-        }
-        team.getTournaments().add(tournament);
-        team = teamRepository.save(team);
+        teamApplicationRepository.save(newApplication);
 
         return mapToTeamResponse(team);
     }

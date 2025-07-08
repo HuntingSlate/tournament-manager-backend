@@ -1,8 +1,10 @@
 package com.tournamentmanager.backend.dto;
 
+import com.tournamentmanager.backend.model.Tournament;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -29,9 +31,14 @@ public class TournamentRequest {
     @NotNull(message = "Game ID cannot be null")
     private Long gameId;
 
-
     private String postalCode;
     private String city;
     private String street;
     private Integer number;
+
+    @NotNull(message = "Max teams cannot be null")
+    @Min(value = 2, message = "Tournament must have at least 2 teams")
+    private Integer maxTeams;
+
+    private Tournament.TournamentStatus status;
 }

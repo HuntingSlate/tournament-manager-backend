@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -30,7 +31,6 @@ public class Tournament {
 
     private LocalDate endDate;
 
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "game_id", nullable = false)
     private Game game;
@@ -43,11 +43,26 @@ public class Tournament {
     @JoinColumn(name = "player_id", nullable = false)
     private User organizer;
 
+    private Integer maxTeams;
+    private Integer currentTeams;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TournamentStatus status;
+
     @ManyToMany
     @JoinTable(
-            name = "team_tournament",
+            name = "tournament_teams_accepted",
             joinColumns = @JoinColumn(name = "tournament_id"),
             inverseJoinColumns = @JoinColumn(name = "team_id")
     )
-    private Set<Team> participatingTeams;
+    private Set<Team> participatingTeams = new HashSet<>();
+
+
+    public enum TournamentStatus {
+        PENDING,
+        ACTIVE,
+        COMPLETED,
+        CANCELLED
+    }
 }
