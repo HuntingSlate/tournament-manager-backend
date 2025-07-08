@@ -74,6 +74,13 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<UserResponse>> searchUsers(
+            @RequestParam(required = false) String nickname) {
+        List<UserResponse> response = userService.searchUsersByNickname(nickname);
+        return ResponseEntity.ok(response);
+    }
+
     private UserResponse mapToUserResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());

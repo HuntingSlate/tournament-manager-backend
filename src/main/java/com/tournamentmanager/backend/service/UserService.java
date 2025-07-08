@@ -140,6 +140,18 @@ public class UserService {
         userRepository.save(user);
     }
 
+    public List<UserResponse> searchUsersByNickname(String nickname) {
+        List<User> users;
+        if (nickname != null && !nickname.isEmpty()) {
+            users = userRepository.findByNicknameContainingIgnoreCase(nickname);
+        } else {
+            users = userRepository.findAll(); // Zwróć wszystkich, jeśli puste kryterium
+        }
+        return users.stream()
+                .map(this::mapToUserResponse)
+                .collect(Collectors.toList());
+    }
+
     private PlayerLinkResponse mapToPlayerLinkResponse(PlayerLink playerLink) {
         return new PlayerLinkResponse(
                 playerLink.getId(),
