@@ -23,4 +23,7 @@ public class PlayerLink {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "link_id", nullable = false)
     private Link link;
+
+    @Column(length = 50)
+    private String platformUsername;
 }

@@ -45,6 +45,36 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/teams/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/matches/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/statistics/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()
+
+                        // User:
+                        .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me/profile").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/users/me/links").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/me/links/{playerLinkId}").authenticated()
+
+                        // Tournaments:
+                        .requestMatchers(HttpMethod.POST, "/api/tournaments").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/tournaments/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/tournaments/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/tournaments/**/applications").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/tournaments/**/applications/**/status").authenticated()
+
+                        // Team:
+                        .requestMatchers(HttpMethod.POST, "/api/teams").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/teams/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/teams/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/teams/**/members/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/teams/**/members/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/teams/**/apply/**").authenticated()
+
+                        // Match:
+                        .requestMatchers(HttpMethod.POST, "/api/matches").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/matches/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/matches/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/matches/**/statistics").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
