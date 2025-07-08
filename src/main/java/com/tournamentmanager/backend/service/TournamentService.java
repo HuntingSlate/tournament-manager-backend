@@ -16,7 +16,11 @@ import com.tournamentmanager.backend.repository.TournamentRepository;
 import com.tournamentmanager.backend.repository.UserRepository;
 import com.tournamentmanager.backend.repository.TeamRepository;
 import com.tournamentmanager.backend.repository.TeamApplicationRepository;
-import jakarta.persistence.EntityNotFoundException;
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
+import com.tournamentmanager.backend.exception.UnauthorizedException;
+import com.tournamentmanager.backend.exception.BadRequestException;
+import com.tournamentmanager.backend.exception.ConflictException;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,10 +60,10 @@ public class TournamentService {
     @Transactional
     public TournamentResponse createTournament(TournamentRequest request, Long organizerId) {
         Game game = gameRepository.findById(request.getGameId())
-                .orElseThrow(() -> new EntityNotFoundException("Game not found with ID: " + request.getGameId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", request.getGameId()));
 
         User organizer = userRepository.findById(organizerId)
-                .orElseThrow(() -> new EntityNotFoundException("Organizer not found with ID: " + organizerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Organizer", "ID", organizerId));
 
         Location location = null;
         boolean isLanTournament = false;
@@ -93,7 +97,7 @@ public class TournamentService {
 
     public TournamentResponse getTournamentById(Long id) {
         Tournament tournament = tournamentRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Tournament not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", id));
 
         boolean isLanTournament = tournament.getLocation() != null;
         return mapToTournamentResponse(tournament, isLanTournament);
@@ -102,10 +106,10 @@ public class TournamentService {
     @Transactional
     public TournamentResponse updateTournament(Long id, TournamentRequest request, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Tournament not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", id));
 
         if (!tournament.getOrganizer().getId().equals(currentUserId)) {
-            throw new SecurityException("Unauthorized: Only the organizer can update this tournament.");
+            throw new UnauthorizedException("Only the organizer can update this tournament.");
         }
 
         tournament.setName(request.getName());
@@ -115,7 +119,7 @@ public class TournamentService {
 
         if (!tournament.getGame().getId().equals(request.getGameId())) {
             Game newGame = gameRepository.findById(request.getGameId())
-                    .orElseThrow(() -> new EntityNotFoundException("Game not found with ID: " + request.getGameId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", request.getGameId()));
             tournament.setGame(newGame);
         }
 
@@ -158,10 +162,10 @@ public class TournamentService {
     @Transactional
     public void deleteTournament(Long id, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Tournament not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", id));
 
         if (!tournament.getOrganizer().getId().equals(currentUserId)) {
-            throw new SecurityException("User is not authorized to delete this tournament.");
+            throw new UnauthorizedException("Only the organizer can delete this tournament.");
         }
 
         if (tournament.getLocation() != null) {
@@ -225,10 +229,10 @@ public class TournamentService {
 
     public List<TeamApplicationResponse> getTournamentApplications(Long tournamentId, Long organizerId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new EntityNotFoundException("Tournament not found with ID: " + tournamentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
 
         if (!tournament.getOrganizer().getId().equals(organizerId)) {
-            throw new SecurityException("User is not authorized to view applications for this tournament.");
+            throw new UnauthorizedException("User is not authorized to view applications for this tournament.");
         }
 
         return teamApplicationRepository.findByTournament(tournament).stream()
@@ -239,17 +243,17 @@ public class TournamentService {
     @Transactional
     public TeamApplicationResponse updateApplicationStatus(Long tournamentId, Long applicationId, Boolean accepted, Long organizerId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new EntityNotFoundException("Tournament not found with ID: " + tournamentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
 
         if (!tournament.getOrganizer().getId().equals(organizerId)) {
-            throw new SecurityException("User is not authorized to manage applications for this tournament.");
+            throw new UnauthorizedException("User is not authorized to manage applications for this tournament.");
         }
 
         TeamApplication application = teamApplicationRepository.findById(applicationId)
-                .orElseThrow(() -> new EntityNotFoundException("Application not found with ID: " + applicationId));
+                .orElseThrow(() -> new ResourceNotFoundException("Application", "ID", applicationId));
 
         if (!application.getTournament().getId().equals(tournamentId)) {
-            throw new IllegalArgumentException("Application does not belong to this tournament.");
+            throw new BadRequestException("Application does not belong to this tournament.");
         }
 
         if (accepted) {
@@ -257,10 +261,10 @@ public class TournamentService {
                 tournament.setParticipatingTeams(new HashSet<>());
             }
             if (tournament.getParticipatingTeams().size() >= tournament.getMaxTeams()) {
-                throw new IllegalStateException("Tournament has reached its maximum number of teams.");
+                throw new ConflictException("Tournament has reached its maximum number of teams.");
             }
             if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING) {
-                throw new IllegalStateException("Application is not in PENDING status.");
+                throw new ConflictException("Application is not in PENDING status or already accepted/rejected.");
             }
 
             application.setStatus(TeamApplication.ApplicationStatus.ACCEPTED);
@@ -276,20 +280,24 @@ public class TournamentService {
             teamRepository.save(team);
 
         } else {
-            if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING) {
-                if (application.getStatus() == TeamApplication.ApplicationStatus.ACCEPTED) {
-                    if (tournament.getParticipatingTeams() != null) {
-                        tournament.getParticipatingTeams().remove(application.getTeam());
-                    }
-                    if (tournament.getCurrentTeams() > 0) {
-                        tournament.setCurrentTeams(tournament.getCurrentTeams() - 1);
-                    }
-                    tournamentRepository.save(tournament);
-                    Team team = application.getTeam();
-                    if (team.getTournaments() != null) {
-                        team.getTournaments().remove(tournament);
-                        teamRepository.save(team);
-                    }
+            if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING &&
+                    application.getStatus() != TeamApplication.ApplicationStatus.ACCEPTED) {
+                throw new BadRequestException("Application cannot be rejected from its current status.");
+            }
+
+            if (application.getStatus() == TeamApplication.ApplicationStatus.ACCEPTED) {
+                if (tournament.getParticipatingTeams() != null) {
+                    tournament.getParticipatingTeams().remove(application.getTeam());
+                }
+                if (tournament.getCurrentTeams() > 0) {
+                    tournament.setCurrentTeams(tournament.getCurrentTeams() - 1);
+                }
+                tournamentRepository.save(tournament);
+
+                Team team = application.getTeam();
+                if (team.getTournaments() != null) {
+                    team.getTournaments().remove(tournament);
+                    teamRepository.save(team);
                 }
             }
             application.setStatus(TeamApplication.ApplicationStatus.REJECTED);

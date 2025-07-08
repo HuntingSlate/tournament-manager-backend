@@ -6,8 +6,13 @@ import com.tournamentmanager.backend.dto.TeamRequest;
 import com.tournamentmanager.backend.dto.TeamResponse;
 import com.tournamentmanager.backend.model.*;
 import com.tournamentmanager.backend.repository.*;
-import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
+import com.tournamentmanager.backend.exception.UnauthorizedException;
+import com.tournamentmanager.backend.exception.BadRequestException;
+import com.tournamentmanager.backend.exception.ConflictException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,7 +31,6 @@ public class TeamService {
     private final UserRepository userRepository;
     private final PlayerTeamRepository playerTeamRepository;
     private final TournamentRepository tournamentRepository;
-
     private final TeamApplicationRepository teamApplicationRepository;
 
     public TeamService(TeamRepository teamRepository, GameRepository gameRepository,
@@ -44,13 +48,13 @@ public class TeamService {
     @Transactional
     public TeamResponse createTeam(TeamRequest request, Long leaderId) {
         Game game = gameRepository.findById(request.getGameId())
-                .orElseThrow(() -> new RuntimeException("Game not found with ID: " + request.getGameId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", request.getGameId()));
 
         User leader = userRepository.findById(leaderId)
-                .orElseThrow(() -> new RuntimeException("Leader not found with ID: " + leaderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Leader", "ID", leaderId));
 
         if (teamRepository.findByNameAndGame(request.getName(), game).isPresent()) {
-            throw new RuntimeException("Team with this name already exists for this game.");
+            throw new ConflictException("Team with this name already exists for this game.");
         }
 
         Team team = new Team();
@@ -71,29 +75,29 @@ public class TeamService {
 
     public TeamResponse getTeamById(Long id) {
         Team team = teamRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Team not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", id));
         return mapToTeamResponse(team);
     }
 
     @Transactional
     public TeamResponse updateTeam(Long id, TeamRequest request, Long currentUserId) {
         Team team = teamRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Team not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", id));
 
         if (!team.getLeader().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the team leader can update this team.");
+            throw new UnauthorizedException("Only the team leader can update this team.");
         }
 
         if (!team.getName().equals(request.getName())) {
             if (teamRepository.findByNameAndGame(request.getName(), team.getGame()).isPresent()) {
-                throw new RuntimeException("Team with this name already exists for this game.");
+                throw new ConflictException("Team with this name already exists for this game.");
             }
             team.setName(request.getName());
         }
 
         if (!team.getGame().getId().equals(request.getGameId())) {
             Game newGame = gameRepository.findById(request.getGameId())
-                    .orElseThrow(() -> new RuntimeException("Game not found with ID: " + request.getGameId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", request.getGameId()));
             team.setGame(newGame);
         }
 
@@ -104,10 +108,10 @@ public class TeamService {
     @Transactional
     public void deleteTeam(Long id, Long currentUserId) {
         Team team = teamRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Team not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", id));
 
         if (!team.getLeader().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the team leader can delete this team.");
+            throw new UnauthorizedException("Only the team leader can delete this team.");
         }
 
         teamRepository.delete(team);
@@ -116,16 +120,16 @@ public class TeamService {
     @Transactional
     public TeamResponse addTeamMember(Long teamId, Long memberId, Long currentUserId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new RuntimeException("Team not found with ID: " + teamId));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", teamId));
         User newMember = userRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("Member not found with ID: " + memberId));
+                .orElseThrow(() -> new ResourceNotFoundException("Member", "ID", memberId));
 
         if (!team.getLeader().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the team leader can add members to this team.");
+            throw new UnauthorizedException("Only the team leader can add members to this team.");
         }
 
         if (playerTeamRepository.findByTeamAndUser(team, newMember).isPresent()) {
-            throw new RuntimeException("User is already a member of this team.");
+            throw new ConflictException("User is already a member of this team.");
         }
 
 
@@ -141,19 +145,18 @@ public class TeamService {
     @Transactional
     public TeamResponse removeTeamMember(Long teamId, Long memberId, Long currentUserId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new RuntimeException("Team not found with ID: " + teamId));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", teamId));
         User memberToRemove = userRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("Member not found with ID: " + memberId));
+                .orElseThrow(() -> new ResourceNotFoundException("Member", "ID", memberId));
 
         if (!team.getLeader().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the team leader can remove members from this team.");
+            throw new UnauthorizedException("Only the team leader can remove members from this team.");
         }
 
         PlayerTeam playerTeam = playerTeamRepository.findByTeamAndUser(team, memberToRemove)
-                .orElseThrow(() -> new RuntimeException("User is not a member of this team."));
+                .orElseThrow(() -> new BadRequestException("User is not a member of this team."));
 
         playerTeamRepository.delete(playerTeam);
-
 
         return mapToTeamResponse(team);
     }
@@ -161,20 +164,20 @@ public class TeamService {
     @Transactional
     public TeamResponse applyToTournament(Long teamId, Long tournamentId, Long currentUserId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new RuntimeException("Team not found with ID: " + teamId));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", teamId));
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new RuntimeException("Tournament not found with ID: " + tournamentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
 
         if (!team.getLeader().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the team leader can apply this team to a tournament.");
+            throw new UnauthorizedException("Only the team leader can apply this team to a tournament.");
         }
 
         if (!team.getGame().equals(tournament.getGame())) {
-            throw new RuntimeException("Team's game does not match tournament's game.");
+            throw new BadRequestException("Team's game does not match tournament's game.");
         }
 
         if (teamApplicationRepository.findByTeamAndTournament(team, tournament).isPresent()) {
-            throw new RuntimeException("Team has already applied to this tournament.");
+            throw new ConflictException("Team has already applied to this tournament.");
         }
 
         TeamApplication newApplication = new TeamApplication();

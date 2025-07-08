@@ -4,6 +4,9 @@ import com.tournamentmanager.backend.dto.MatchRequest;
 import com.tournamentmanager.backend.dto.MatchResponse;
 import com.tournamentmanager.backend.dto.MatchStatisticsRequest;
 import com.tournamentmanager.backend.dto.MatchPlayerStatisticsResponse;
+import com.tournamentmanager.backend.exception.BadRequestException;
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
+import com.tournamentmanager.backend.exception.UnauthorizedException;
 import com.tournamentmanager.backend.model.*;
 import com.tournamentmanager.backend.repository.MatchRepository;
 import com.tournamentmanager.backend.repository.TournamentRepository;
@@ -47,23 +50,23 @@ public class MatchService {
     @Transactional
     public MatchResponse createMatch(MatchRequest request, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(request.getTournamentId())
-                .orElseThrow(() -> new RuntimeException("Tournament not found with ID: " + request.getTournamentId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", request.getTournamentId()));
 
         if (!tournament.getOrganizer().getId().equals(currentUserId)) {
             throw new RuntimeException("Unauthorized: Only the tournament organizer can create matches.");
         }
 
         Team team1 = teamRepository.findById(request.getTeam1Id())
-                .orElseThrow(() -> new RuntimeException("Team 1 not found with ID: " + request.getTeam1Id()));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", request.getTeam1Id()));
         Team team2 = teamRepository.findById(request.getTeam2Id())
-                .orElseThrow(() -> new RuntimeException("Team 2 not found with ID: " + request.getTeam2Id()));
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", request.getTeam2Id()));
 
         if (team1.getId().equals(team2.getId())) {
-            throw new RuntimeException("Teams cannot be the same in a match.");
+            throw new BadRequestException("Teams cannot be the same in a match.");
         }
 
         if (!tournament.getParticipatingTeams().contains(team1) || !tournament.getParticipatingTeams().contains(team2)) {
-            throw new RuntimeException("Both teams must be part of the tournament.");
+            throw new BadRequestException("Both teams must be part of the tournament.");
         }
 
         Match match = new Match();
@@ -75,12 +78,12 @@ public class MatchService {
 
         if (request.getPrevMatch1Id() != null) {
             Match prevMatch1 = matchRepository.findById(request.getPrevMatch1Id())
-                    .orElseThrow(() -> new RuntimeException("Previous match 1 not found with ID: " + request.getPrevMatch1Id()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Previous match", "ID", request.getPrevMatch1Id()));
             match.setPrevMatch1(prevMatch1);
         }
         if (request.getPrevMatch2Id() != null) {
             Match prevMatch2 = matchRepository.findById(request.getPrevMatch2Id())
-                    .orElseThrow(() -> new RuntimeException("Previous match 2 not found with ID: " + request.getPrevMatch2Id()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Previous match", "ID", request.getPrevMatch2Id()));
             match.setPrevMatch2(prevMatch2);
         }
 
@@ -90,17 +93,17 @@ public class MatchService {
 
     public MatchResponse getMatchById(Long id) {
         Match match = matchRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Match not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
         return mapToMatchResponse(match);
     }
 
     @Transactional
     public MatchResponse updateMatch(Long id, MatchRequest request, Long currentUserId) {
         Match match = matchRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Match not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
         if (!match.getTournament().getOrganizer().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the tournament organizer can update this match.");
+            throw new UnauthorizedException("Only the tournament organizer can update this match.");
         }
 
         match.setStartDatetime(request.getStartDatetime());
@@ -108,9 +111,9 @@ public class MatchService {
 
         if (request.getWinningTeamId() != null) {
             Team winningTeam = teamRepository.findById(request.getWinningTeamId())
-                    .orElseThrow(() -> new RuntimeException("Winning team not found with ID: " + request.getWinningTeamId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Winning team", "ID", request.getWinningTeamId()));
             if (!winningTeam.equals(match.getTeam1()) && !winningTeam.equals(match.getTeam2())) {
-                throw new RuntimeException("Winning team must be one of the participating teams in the match.");
+                throw new BadRequestException("Winning team must be one of the participating teams in the match.");
             }
             match.setWinningTeam(winningTeam);
         } else {
@@ -124,10 +127,10 @@ public class MatchService {
     @Transactional
     public void deleteMatch(Long id, Long currentUserId) {
         Match match = matchRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Match not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
         if (!match.getTournament().getOrganizer().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the tournament organizer can delete this match.");
+            throw new UnauthorizedException("Only the tournament organizer can delete this match.");
         }
 
         matchRepository.delete(match);
@@ -136,10 +139,10 @@ public class MatchService {
     @Transactional
     public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests, Long currentUserId) {
         Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new RuntimeException("Match not found with ID: " + matchId));
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
 
         if (!match.getTournament().getOrganizer().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the tournament organizer can save match statistics.");
+            throw new UnauthorizedException("Only the tournament organizer can save match statistics.");
         }
 
         for (MatchStatisticsRequest req : statisticsRequests) {
@@ -152,7 +155,7 @@ public class MatchService {
                     team2Members.stream().anyMatch(pt -> pt.getUser().equals(player));
 
             if (!isPlayerInMatchTeams) {
-                throw new RuntimeException("Player " + player.getNickname() + " is not a member of teams participating in this match.");
+                throw new BadRequestException("Player " + player.getNickname() + " is not a member of teams participating in this match.");
             }
 
             MatchStatistics matchStats = matchStatisticsRepository.findByMatchAndPlayer(match, player)

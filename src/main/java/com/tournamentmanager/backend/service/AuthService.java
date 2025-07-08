@@ -3,6 +3,8 @@ package com.tournamentmanager.backend.service;
 import com.tournamentmanager.backend.dto.LoginRequest;
 import com.tournamentmanager.backend.dto.RegisterRequest;
 import com.tournamentmanager.backend.dto.AuthResponse;
+import com.tournamentmanager.backend.exception.ConflictException;
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.model.User;
 import com.tournamentmanager.backend.repository.UserRepository;
 import com.tournamentmanager.backend.security.JwtTokenProvider;
@@ -31,10 +33,10 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest registerRequest) {
         if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
-            throw new RuntimeException("Email is already taken!");
+            throw new ConflictException("Email is already taken!");
         }
         if (userRepository.findByNickname(registerRequest.getNickname()).isPresent()) {
-            throw new RuntimeException("Nickname is already taken!");
+            throw new ConflictException("Nickname is already taken!");
         }
 
         User user = new User();
@@ -67,7 +69,7 @@ public class AuthService {
 
         String token = jwtTokenProvider.generateToken(authentication);
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", loginRequest.getEmail()));
         return new AuthResponse(token, user.getId(), user.getEmail(), user.getNickname());
     }
 }

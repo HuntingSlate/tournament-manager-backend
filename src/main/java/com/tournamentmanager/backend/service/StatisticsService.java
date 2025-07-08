@@ -2,6 +2,7 @@ package com.tournamentmanager.backend.service;
 
 import com.tournamentmanager.backend.dto.MatchPlayerStatisticsResponse;
 import com.tournamentmanager.backend.dto.PlayerStatisticsResponse;
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.model.*;
 import com.tournamentmanager.backend.repository.*;
 import org.springframework.stereotype.Service;
@@ -33,9 +34,9 @@ public class StatisticsService {
 
     public PlayerStatisticsResponse getPlayerStatistics(Long playerId, Long gameId) {
         User player = userRepository.findById(playerId)
-                .orElseThrow(() -> new RuntimeException("Player not found with ID: " + playerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Player", "ID", playerId));
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found with ID: " + gameId));
+                .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", gameId));
 
         PlayerStatistics stats = playerStatisticsRepository.findByPlayerAndGame(player, game)
                 .orElse(null);
@@ -44,7 +45,7 @@ public class StatisticsService {
 
     public List<PlayerStatisticsResponse> getPlayerRankingByKills(Long gameId) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found with ID: " + gameId));
+                .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", gameId));
 
         List<PlayerStatistics> statsList = playerStatisticsRepository.findByGame(game);
 
@@ -80,12 +81,13 @@ public class StatisticsService {
 
     public MatchPlayerStatisticsResponse getMatchPlayerStatistics(Long matchId, Long playerId) {
         Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new RuntimeException("Match not found with ID: " + matchId));
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
         User player = userRepository.findById(playerId)
-                .orElseThrow(() -> new RuntimeException("Player not found with ID: " + playerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Player", "ID", playerId));
 
         MatchStatistics stats = matchStatisticsRepository.findByMatchAndPlayer(match, player)
-                .orElseThrow(() -> new RuntimeException("Statistics not found for player " + player.getNickname() + " in match " + match.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Match statistics", "player and match", player.getNickname() + " in match " + match.getId()));
 
         return mapToMatchPlayerStatisticsResponse(stats);
     }
