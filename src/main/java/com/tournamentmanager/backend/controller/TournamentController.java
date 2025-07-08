@@ -1,5 +1,7 @@
 package com.tournamentmanager.backend.controller;
 
+import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
+import com.tournamentmanager.backend.dto.TeamApplicationResponse;
 import com.tournamentmanager.backend.dto.TournamentRequest;
 import com.tournamentmanager.backend.dto.TournamentResponse;
 import com.tournamentmanager.backend.service.TournamentService;
@@ -66,6 +68,27 @@ public class TournamentController {
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String organizerNickname) {
         List<TournamentResponse> response = tournamentService.searchTournaments(name, location, startDate, endDate, organizerNickname);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{tournamentId}/applications")
+    public ResponseEntity<List<TeamApplicationResponse>> getTournamentApplications(
+            @PathVariable Long tournamentId,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long organizerId = userService.getUserIdByEmail(currentUser.getUsername());
+        List<TeamApplicationResponse> response = tournamentService.getTournamentApplications(tournamentId, organizerId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{tournamentId}/applications/{applicationId}/status")
+    public ResponseEntity<TeamApplicationResponse> updateApplicationStatus(
+            @PathVariable Long tournamentId,
+            @PathVariable Long applicationId,
+            @Valid @RequestBody ApplicationStatusRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long organizerId = userService.getUserIdByEmail(currentUser.getUsername());
+        TeamApplicationResponse response = tournamentService.updateApplicationStatus(
+                tournamentId, applicationId, request.getAccepted(), organizerId);
         return ResponseEntity.ok(response);
     }
 
