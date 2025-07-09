@@ -1,5 +1,6 @@
 package com.tournamentmanager.backend.config;
 
+import com.tournamentmanager.backend.security.JwtAuthenticationEntryPoint;
 import com.tournamentmanager.backend.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,9 +21,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private JwtAuthenticationEntryPoint authenticationEntryPoint;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          JwtAuthenticationEntryPoint authenticationEntryPoint) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     @Bean
@@ -39,8 +43,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
                 .authorizeHttpRequests(authorize -> authorize
-                        // Publiczne endpointy
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/tournaments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/teams/**").permitAll()
@@ -49,35 +53,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/search").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-
-                        // User:
-                        .requestMatchers(HttpMethod.PUT, "/api/users/me/profile").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/users/me/links").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/users/me/links/{playerLinkId}").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
-
-                        // Tournaments:
-                        .requestMatchers(HttpMethod.POST, "/api/tournaments").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/tournaments/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/tournaments/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/tournaments/{tournamentId}/applications").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/tournaments/{tournamentId}/applications/{applicationId}/status").authenticated()
-
-
-                        // Teams:
-                        .requestMatchers(HttpMethod.POST, "/api/teams").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/teams/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/teams/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/teams/{teamId}/members/{memberId}").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/teams/{teamId}/members/{memberId}").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/teams/**/apply/**").authenticated()
-
-                        // Matches:
-                        .requestMatchers(HttpMethod.POST, "/api/matches").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/matches/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/matches/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/matches/**/statistics").authenticated()
 
                         .anyRequest().authenticated()
                 )

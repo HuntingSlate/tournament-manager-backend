@@ -48,30 +48,10 @@ public class JwtTokenProvider {
     }
 
     public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder()
-                    .setSigningKey(key())
-                    .build()
-                    .parseClaimsJws(token);
-            return true;
-        } catch (SignatureException e) {
-            System.err.println("Invalid JWT signature: " + e.getMessage());
-            return false;
-        } catch (MalformedJwtException e) {
-            System.err.println("Invalid JWT token: " + e.getMessage());
-            return false;
-        } catch (ExpiredJwtException e) {
-            System.err.println("Expired JWT token: " + e.getMessage());
-            return false;
-        } catch (UnsupportedJwtException e) {
-            System.err.println("Unsupported JWT token: " + e.getMessage());
-            return false;
-        } catch (IllegalArgumentException e) {
-            System.err.println("JWT claims string is empty: " + e.getMessage());
-            return false;
-        } catch (JwtException e) {
-            System.err.println("Other JWT exception: " + e.getMessage());
-            return false;
-        }
+        Jwts.parserBuilder()
+                .setSigningKey(key())
+                .build()
+                .parseClaimsJws(token);
+        return true;
     }
 }
