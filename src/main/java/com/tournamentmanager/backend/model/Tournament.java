@@ -58,11 +58,10 @@ public class Tournament {
     )
     private Set<Team> participatingTeams = new HashSet<>();
 
-
-    public enum TournamentStatus {
-        PENDING,
-        ACTIVE,
-        COMPLETED,
-        CANCELLED
+    @PrePersist
+    protected void onCreate() {
+        if (status == null) {
+            status = TournamentStatus.PENDING;
+        }
     }
 }

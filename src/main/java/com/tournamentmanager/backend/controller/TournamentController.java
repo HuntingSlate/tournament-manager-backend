@@ -4,12 +4,17 @@ import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
 import com.tournamentmanager.backend.dto.TeamApplicationResponse;
 import com.tournamentmanager.backend.dto.TournamentRequest;
 import com.tournamentmanager.backend.dto.TournamentResponse;
+import com.tournamentmanager.backend.model.TournamentStatus;
+import com.tournamentmanager.backend.security.CustomUserDetails;
 import com.tournamentmanager.backend.service.TournamentService;
 import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -90,6 +95,37 @@ public class TournamentController {
         TeamApplicationResponse response = tournamentService.updateApplicationStatus(
                 tournamentId, applicationId, request.getAccepted(), organizerId);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<TournamentResponse> changeTournamentStatus(@PathVariable Long id,
+                                                                     @RequestParam TournamentStatus newStatus) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long currentUserId = ((CustomUserDetails) authentication.getPrincipal()).getId();
+
+        TournamentResponse updatedTournament = tournamentService.changeTournamentStatus(id, newStatus, currentUserId);
+        return ResponseEntity.ok(updatedTournament);
+    }
+
+    @PatchMapping("/{tournamentId}/applications/{applicationId}/withdraw")
+    public ResponseEntity<TeamApplicationResponse> withdrawTeamApplication(@PathVariable Long tournamentId,
+                                                                           @PathVariable Long applicationId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long currentUserId = ((CustomUserDetails) authentication.getPrincipal()).getId();
+
+        TeamApplicationResponse updatedApplication = tournamentService.withdrawTeamApplication(tournamentId, applicationId, currentUserId);
+        return ResponseEntity.ok(updatedApplication);
+    }
+
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, authentication.principal.id)")
+    @DeleteMapping("/{tournamentId}/teams/{teamId}/remove")
+    public ResponseEntity<TournamentResponse> removeTeamFromTournament(@PathVariable Long tournamentId,
+                                                                       @PathVariable Long teamId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long currentUserId = ((CustomUserDetails) authentication.getPrincipal()).getId();
+
+        TournamentResponse updatedTournament = tournamentService.removeTeamFromTournament(tournamentId, teamId, currentUserId);
+        return ResponseEntity.ok(updatedTournament);
     }
 
     private Long getUserIdFromUserDetails(UserDetails currentUser) {

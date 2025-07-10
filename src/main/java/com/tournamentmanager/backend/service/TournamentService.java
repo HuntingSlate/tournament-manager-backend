@@ -4,12 +4,7 @@ import com.tournamentmanager.backend.dto.TournamentRequest;
 import com.tournamentmanager.backend.dto.TournamentResponse;
 import com.tournamentmanager.backend.dto.TeamApplicationResponse;
 import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
-import com.tournamentmanager.backend.model.Game;
-import com.tournamentmanager.backend.model.Location;
-import com.tournamentmanager.backend.model.Tournament;
-import com.tournamentmanager.backend.model.User;
-import com.tournamentmanager.backend.model.Team;
-import com.tournamentmanager.backend.model.TeamApplication;
+import com.tournamentmanager.backend.model.*;
 import com.tournamentmanager.backend.repository.GameRepository;
 import com.tournamentmanager.backend.repository.LocationRepository;
 import com.tournamentmanager.backend.repository.TournamentRepository;
@@ -21,6 +16,7 @@ import com.tournamentmanager.backend.exception.UnauthorizedException;
 import com.tournamentmanager.backend.exception.BadRequestException;
 import com.tournamentmanager.backend.exception.ConflictException;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,7 +84,7 @@ public class TournamentService {
         tournament.setLocation(location);
         tournament.setMaxTeams(request.getMaxTeams());
         tournament.setCurrentTeams(0);
-        tournament.setStatus(Tournament.TournamentStatus.PENDING);
+        tournament.setStatus(TournamentStatus.PENDING);
 
         tournament = tournamentRepository.save(tournament);
 
@@ -317,5 +313,99 @@ public class TournamentService {
                 application.getApplicationDate(),
                 application.getStatus()
         );
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
+    public TournamentResponse changeTournamentStatus(Long tournamentId, TournamentStatus newStatus, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+
+        if (tournament.getStatus() == TournamentStatus.FINISHED || tournament.getStatus() == TournamentStatus.CANCELLED) {
+            if (newStatus != TournamentStatus.CANCELLED) {
+                throw new BadRequestException("Cannot change status from FINISHED or CANCELLED.");
+            }
+        }
+        if (tournament.getStatus() == TournamentStatus.PENDING && newStatus == TournamentStatus.ONGOING) {
+             if (tournament.getParticipatingTeams().size() < tournament.getMaxTeams()) {
+                 throw new BadRequestException("Not enough teams to start the tournament.");
+             }
+        }
+
+
+        tournament.setStatus(newStatus);
+        Tournament updatedTournament = tournamentRepository.save(tournament);
+
+        boolean isLanTournament = updatedTournament.getLocation() != null;
+        return mapToTournamentResponse(updatedTournament, isLanTournament);
+    }
+
+    public boolean isOrganizer(Long tournamentId, Long userId) {
+        return tournamentRepository.findById(tournamentId)
+                .map(tournament -> tournament.getOrganizer() != null && tournament.getOrganizer().getId().equals(userId))
+                .orElse(false);
+    }
+
+    @Transactional
+    public TeamApplicationResponse withdrawTeamApplication(Long tournamentId, Long applicationId, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+
+        TeamApplication application = teamApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application", "ID", applicationId));
+
+        if (!application.getTournament().getId().equals(tournamentId)) {
+            throw new BadRequestException("Application does not belong to this tournament.");
+        }
+
+        if (!application.getTeam().getLeader().getId().equals(currentUserId)) {
+            throw new UnauthorizedException("Only the team leader can withdraw this application.");
+        }
+
+        if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING) {
+            throw new BadRequestException("Only PENDING applications can be withdrawn.");
+        }
+
+        application.setStatus(TeamApplication.ApplicationStatus.WITHDRAWN);
+        TeamApplication updatedApplication = teamApplicationRepository.save(application);
+
+        return mapToTeamApplicationResponse(updatedApplication);
+    }
+
+
+
+    @Transactional
+    public TournamentResponse removeTeamFromTournament(Long tournamentId, Long teamId, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+        if (!tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new UnauthorizedException("Only the tournament organizer can remove teams from this tournament.");
+        }
+
+        Team teamToRemove = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", teamId));
+
+        if (!tournament.getParticipatingTeams().contains(teamToRemove)) {
+            throw new BadRequestException("Team is not a participant in this tournament.");
+        }
+
+        tournament.getParticipatingTeams().remove(teamToRemove);
+        if (tournament.getCurrentTeams() > 0) {
+            tournament.setCurrentTeams(tournament.getCurrentTeams() - 1);
+        }
+        Tournament updatedTournament = tournamentRepository.save(tournament);
+
+        teamToRemove.getTournaments().remove(tournament);
+        teamRepository.save(teamToRemove);
+
+        teamApplicationRepository.findByTeamAndTournament(teamToRemove, tournament)
+                .ifPresent(app -> {
+                    app.setStatus(TeamApplication.ApplicationStatus.REJECTED);
+                    teamApplicationRepository.save(app);
+                });
+
+
+        boolean isLanTournament = updatedTournament.getLocation() != null;
+        return mapToTournamentResponse(updatedTournament, isLanTournament);
     }
 }
