@@ -30,6 +30,9 @@ public class User {
     @Column(length = 50)
     private String fullName;
 
+    @Column(nullable = false, length = 20)
+    private String role;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PlayerTeam> playerTeams;
 
@@ -41,5 +44,13 @@ public class User {
 
     @OneToMany(mappedBy = "player", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<MatchStatistics> matchStatisticsEntries;
+
+    public User(String email, String password, String nickname, String fullName) {
+        this.email = email;
+        this.password = password;
+        this.nickname = nickname;
+        this.fullName = fullName;
+        this.role = "ROLE_USER";
+    }
 
 }
