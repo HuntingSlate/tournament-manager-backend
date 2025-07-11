@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -30,27 +31,27 @@ public class User {
     @Column(length = 50)
     private String fullName;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String role;
+    private Roles role;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<PlayerTeam> playerTeams;
+    private Set<PlayerTeam> playerTeams = new HashSet<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<PlayerLink> playerLinks;
+    private Set<PlayerLink> playerLinks = new HashSet<>();
 
     @OneToMany(mappedBy = "player", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<PlayerStatistics> playerStatistics;
+    private Set<PlayerStatistics> playerStatistics = new HashSet<>();
 
     @OneToMany(mappedBy = "player", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<MatchStatistics> matchStatisticsEntries;
+    private Set<MatchStatistics> matchStatisticsEntries = new HashSet<>();
 
     public User(String email, String password, String nickname, String fullName) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
         this.fullName = fullName;
-        this.role = "ROLE_USER";
+        this.role = Roles.ROLE_USER;
     }
-
 }

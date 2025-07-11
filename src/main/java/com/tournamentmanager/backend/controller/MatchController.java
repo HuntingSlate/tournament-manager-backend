@@ -3,66 +3,78 @@ package com.tournamentmanager.backend.controller;
 import com.tournamentmanager.backend.dto.MatchRequest;
 import com.tournamentmanager.backend.dto.MatchResponse;
 import com.tournamentmanager.backend.dto.MatchStatisticsRequest;
+import com.tournamentmanager.backend.model.Match;
+import com.tournamentmanager.backend.security.CustomUserDetails;
 import com.tournamentmanager.backend.service.MatchService;
-import com.tournamentmanager.backend.service.UserService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/matches")
+@RequestMapping("/api")
 public class MatchController {
 
     private final MatchService matchService;
-    private final UserService userService;
 
-    public MatchController(MatchService matchService, UserService userService) {
+    public MatchController(MatchService matchService) {
         this.matchService = matchService;
-        this.userService = userService;
     }
 
-    @PostMapping
-    public ResponseEntity<MatchResponse> createMatch(@Valid @RequestBody MatchRequest matchRequest,
-                                                     @AuthenticationPrincipal UserDetails currentUser) {
-        Long currentUserId = userService.getUserIdByEmail(currentUser.getUsername());
-        MatchResponse response = matchService.createMatch(matchRequest, currentUserId);
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#request.getTournamentId(), authentication.principal.id)")
+    @PostMapping("/matches")
+    public ResponseEntity<MatchResponse> createMatch(@Valid @RequestBody MatchRequest request) {
+        Match createdMatch = matchService.createMatch(request);
+        MatchResponse response = matchService.mapToMatchResponse(createdMatch);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/matches/{id}")
     public ResponseEntity<MatchResponse> getMatchById(@PathVariable Long id) {
         MatchResponse response = matchService.getMatchById(id);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<MatchResponse> updateMatch(@PathVariable Long id,
-                                                     @Valid @RequestBody MatchRequest matchRequest,
-                                                     @AuthenticationPrincipal UserDetails currentUser) {
-        Long currentUserId = userService.getUserIdByEmail(currentUser.getUsername());
-        MatchResponse response = matchService.updateMatch(id, matchRequest, currentUserId);
+    @GetMapping("/tournaments/{tournamentId}/matches")
+    public ResponseEntity<List<MatchResponse>> getMatchesByTournament(@PathVariable Long tournamentId) {
+        List<MatchResponse> responses = matchService.getMatchesByTournament(tournamentId);
+        return ResponseEntity.ok(responses);
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
+    @PutMapping("/matches/{id}")
+    public ResponseEntity<MatchResponse> updateMatch(@PathVariable Long id, @Valid @RequestBody MatchRequest request) {
+        MatchResponse response = matchService.updateMatch(id, request);
         return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMatch(@PathVariable Long id,
-                                            @AuthenticationPrincipal UserDetails currentUser) {
-        Long currentUserId = userService.getUserIdByEmail(currentUser.getUsername());
-        matchService.deleteMatch(id, currentUserId);
-        return ResponseEntity.noContent().build();
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
+    @PatchMapping("/matches/{id}/record-result")
+    public ResponseEntity<MatchResponse> recordMatchResult(@PathVariable Long id,
+                                                           @RequestParam @NotNull Integer scoreTeam1,
+                                                           @RequestParam @NotNull Integer scoreTeam2) {
+        MatchResponse response = matchService.recordMatchResult(id, scoreTeam1, scoreTeam2);
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{matchId}/statistics")
-    public ResponseEntity<MatchResponse> saveMatchStatistics(@PathVariable Long matchId,
-                                                             @Valid @RequestBody List<MatchStatisticsRequest> statisticsRequests,
-                                                             @AuthenticationPrincipal UserDetails currentUser) {
-        Long currentUserId = userService.getUserIdByEmail(currentUser.getUsername());
-        MatchResponse response = matchService.saveMatchStatistics(matchId, statisticsRequests, currentUserId);
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
+    @PostMapping("/matches/{id}/statistics")
+    public ResponseEntity<MatchResponse> saveMatchStatistics(@PathVariable Long id,
+                                                             @Valid @RequestBody List<MatchStatisticsRequest> statisticsRequests) {
+        MatchResponse response = matchService.saveMatchStatistics(id, statisticsRequests);
         return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
+    @DeleteMapping("/matches/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMatch(@PathVariable Long id) {
+        matchService.deleteMatch(id);
     }
 }

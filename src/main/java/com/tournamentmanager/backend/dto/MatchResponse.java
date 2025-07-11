@@ -1,5 +1,6 @@
 package com.tournamentmanager.backend.dto;
 
+import com.tournamentmanager.backend.model.Match;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -25,6 +26,11 @@ public class MatchResponse {
     private LocalDateTime endDatetime;
     private Long winningTeamId;
     private String winningTeamName;
-
+    private Integer roundNumber;
+    private Integer matchNumberInRound;
+    private Integer scoreTeam1;
+    private Integer scoreTeam2;
+    private Match.MatchStatus status;
     private List<MatchPlayerStatisticsResponse> matchStatistics;
+
 }

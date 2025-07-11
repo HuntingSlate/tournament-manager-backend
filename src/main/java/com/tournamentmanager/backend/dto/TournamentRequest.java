@@ -1,7 +1,6 @@
 package com.tournamentmanager.backend.dto;
 
 import com.tournamentmanager.backend.model.Tournament;
-import com.tournamentmanager.backend.model.TournamentStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -41,5 +40,5 @@ public class TournamentRequest {
     @Min(value = 2, message = "Tournament must have at least 2 teams")
     private Integer maxTeams;
 
-    private TournamentStatus status;
+    private Tournament.TournamentStatus status;
 }

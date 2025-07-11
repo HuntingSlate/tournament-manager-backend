@@ -1,7 +1,6 @@
 package com.tournamentmanager.backend.dto;
 
 import com.tournamentmanager.backend.model.Tournament;
-import com.tournamentmanager.backend.model.TournamentStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -30,5 +29,5 @@ public class TournamentResponse {
 
     private Integer maxTeams;
     private Integer currentTeams;
-    private TournamentStatus status;
+    private Tournament.TournamentStatus status;
 }
