@@ -61,6 +61,7 @@ public class UserService {
 
     @Transactional
     public PlayerLinkResponse addLinkToUser(Long userId, PlayerLinkRequest request) {
+
         User user = getUserById(userId);
 
         Optional<Link> existingLink = linkRepository.findByNameAndUrl(request.getType(), request.getUrl());
@@ -89,7 +90,6 @@ public class UserService {
 
     @Transactional
     public void deleteUserLink(Long userId, Long playerLinkId) {
-        User user = getUserById(userId);
         PlayerLink playerLink = playerLinkRepository.findById(playerLinkId)
                 .orElseThrow(() -> new ResourceNotFoundException("Player link", "ID", playerLinkId));
 
@@ -98,6 +98,40 @@ public class UserService {
         }
 
         playerLinkRepository.delete(playerLink);
+    }
+
+    @Transactional
+    public PlayerLinkResponse updateUserLink(Long userId, Long playerLinkId, PlayerLinkRequest request) {
+        User user = getUserById(userId);
+
+        PlayerLink playerLinkToUpdate = playerLinkRepository.findById(playerLinkId)
+                .orElseThrow(() -> new ResourceNotFoundException("Player link", "ID", playerLinkId));
+
+        if (!playerLinkToUpdate.getUser().getId().equals(userId)) {
+            throw new UnauthorizedException("This link does not belong to the specified user.");
+        }
+
+        Optional<Link> existingLink = linkRepository.findByNameAndUrl(request.getType(), request.getUrl());
+        Link link;
+
+        if (existingLink.isPresent()) {
+            link = existingLink.get();
+        } else {
+            link = new Link();
+            link.setName(request.getType());
+            link.setUrl(request.getUrl());
+        }
+        Optional<PlayerLink> duplicatePlayerLink = playerLinkRepository.findByUserAndLink(user, link);
+        if (duplicatePlayerLink.isPresent() && !duplicatePlayerLink.get().getId().equals(playerLinkId)) {
+            throw new ConflictException("User already has another link with the same type and URL.");
+        }
+
+
+        playerLinkToUpdate.setLink(link);
+        playerLinkToUpdate.setPlatformUsername(request.getPlatformUsername());
+
+        PlayerLink updatedPlayerLink = playerLinkRepository.save(playerLinkToUpdate);
+        return mapToPlayerLinkResponse(updatedPlayerLink);
     }
 
     @Transactional

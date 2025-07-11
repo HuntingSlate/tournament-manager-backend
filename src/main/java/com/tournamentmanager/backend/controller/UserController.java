@@ -50,6 +50,15 @@ public class UserController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @PutMapping("/me/links/{playerLinkId}")
+    public ResponseEntity<PlayerLinkResponse> updateLink(@PathVariable Long playerLinkId,
+                                                         @Valid @RequestBody PlayerLinkRequest request,
+                                                         @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = userService.getUserIdByEmail(currentUser.getUsername());
+        PlayerLinkResponse response = userService.updateUserLink(userId, playerLinkId, request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/me/links/{playerLinkId}")
     public ResponseEntity<Void> deleteLinkFromMyProfile(@PathVariable Long playerLinkId,
                                                         @AuthenticationPrincipal UserDetails currentUser) {
