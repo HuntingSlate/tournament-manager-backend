@@ -6,6 +6,7 @@ import com.tournamentmanager.backend.dto.AuthResponse;
 import com.tournamentmanager.backend.exception.ConflictException;
 import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.model.User;
+import com.tournamentmanager.backend.model.Roles;
 import com.tournamentmanager.backend.repository.UserRepository;
 import com.tournamentmanager.backend.security.JwtTokenProvider;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -43,6 +44,7 @@ public class AuthService {
         user.setEmail(registerRequest.getEmail());
         user.setNickname(registerRequest.getNickname());
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        user.setRole(Roles.ROLE_USER);
 
         userRepository.save(user);
 
@@ -70,6 +72,7 @@ public class AuthService {
         String token = jwtTokenProvider.generateToken(authentication);
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", loginRequest.getEmail()));
+
         return new AuthResponse(token, user.getId(), user.getEmail(), user.getNickname());
     }
 }

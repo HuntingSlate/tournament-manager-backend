@@ -56,10 +56,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 exception.getMessage(),
                 webRequest.getDescription(false)
         );
-        return new ResponseEntity<>(errorDetails, HttpStatus.FORBIDDEN); // 403 Forbidden
+        return new ResponseEntity<>(errorDetails, HttpStatus.UNAUTHORIZED);
     }
-
-    // --- Obsługa generycznych wyjątków (fallback) ---
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetails> handleGlobalException(Exception exception, WebRequest webRequest) {
@@ -68,11 +66,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 exception.getMessage(),
                 webRequest.getDescription(false)
         );
-        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR); // Domyślnie 500
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    // --- Obsługa błędów walidacji @Valid dla DTO ---
-    // Ta metoda nadpisuje domyślną obsługę MethodArgumentNotValidException
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers,
@@ -89,8 +85,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 LocalDateTime.now(),
                 "Validation Failed",
                 request.getDescription(false),
-                errors // Dodajemy mapę błędów walidacji
+                errors
         );
-        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST); // Zwraca 400 Bad Request
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
 }

@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
+import com.tournamentmanager.backend.model.Match;
 
 @Data
 @NoArgsConstructor
@@ -15,10 +16,7 @@ public class MatchRequest {
     @NotNull(message = "Tournament ID cannot be null")
     private Long tournamentId;
 
-    @NotNull(message = "Team 1 ID cannot be null")
     private Long team1Id;
-
-    @NotNull(message = "Team 2 ID cannot be null")
     private Long team2Id;
 
     private Long prevMatch1Id;
@@ -28,6 +26,13 @@ public class MatchRequest {
     private LocalDateTime startDatetime;
 
     private LocalDateTime endDatetime;
-
     private Long winningTeamId;
+
+    private Integer roundNumber;
+    private Integer matchNumberInRound;
+
+    private Integer scoreTeam1;
+    private Integer scoreTeam2;
+    private Match.MatchStatus status;
+
 }

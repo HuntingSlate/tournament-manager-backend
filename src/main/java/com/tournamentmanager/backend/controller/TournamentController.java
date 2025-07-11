@@ -1,15 +1,21 @@
 package com.tournamentmanager.backend.controller;
 
-import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
-import com.tournamentmanager.backend.dto.TeamApplicationResponse;
 import com.tournamentmanager.backend.dto.TournamentRequest;
 import com.tournamentmanager.backend.dto.TournamentResponse;
+import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
+import com.tournamentmanager.backend.dto.TeamApplicationResponse;
+import com.tournamentmanager.backend.dto.MatchResponse;
+import com.tournamentmanager.backend.model.Tournament.TournamentStatus;
+import com.tournamentmanager.backend.model.User;
 import com.tournamentmanager.backend.service.TournamentService;
 import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,10 +35,10 @@ public class TournamentController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<TournamentResponse> createTournament(@Valid @RequestBody TournamentRequest tournamentRequest,
                                                                @AuthenticationPrincipal UserDetails currentUser) {
         Long organizerId = getUserIdFromUserDetails(currentUser);
-
         TournamentResponse response = tournamentService.createTournament(tournamentRequest, organizerId);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
@@ -44,19 +50,17 @@ public class TournamentController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
     public ResponseEntity<TournamentResponse> updateTournament(@PathVariable Long id,
-                                                               @Valid @RequestBody TournamentRequest tournamentRequest,
-                                                               @AuthenticationPrincipal UserDetails currentUser) {
-        Long currentUserId = getUserIdFromUserDetails(currentUser);
-        TournamentResponse response = tournamentService.updateTournament(id, tournamentRequest, currentUserId);
+                                                               @Valid @RequestBody TournamentRequest tournamentRequest) {
+        TournamentResponse response = tournamentService.updateTournament(id, tournamentRequest);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTournament(@PathVariable Long id,
-                                                 @AuthenticationPrincipal UserDetails currentUser) {
-        Long currentUserId = getUserIdFromUserDetails(currentUser);
-        tournamentService.deleteTournament(id, currentUserId);
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
+    public ResponseEntity<Void> deleteTournament(@PathVariable Long id) {
+        tournamentService.deleteTournament(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -72,25 +76,48 @@ public class TournamentController {
     }
 
     @GetMapping("/{tournamentId}/applications")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, authentication.principal.id)")
     public ResponseEntity<List<TeamApplicationResponse>> getTournamentApplications(
-            @PathVariable Long tournamentId,
-            @AuthenticationPrincipal UserDetails currentUser) {
-        Long organizerId = userService.getUserIdByEmail(currentUser.getUsername());
-        List<TeamApplicationResponse> response = tournamentService.getTournamentApplications(tournamentId, organizerId);
+            @PathVariable Long tournamentId) {
+        List<TeamApplicationResponse> response = tournamentService.getTournamentApplications(tournamentId);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{tournamentId}/applications/{applicationId}/status")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, authentication.principal.id)")
     public ResponseEntity<TeamApplicationResponse> updateApplicationStatus(
             @PathVariable Long tournamentId,
             @PathVariable Long applicationId,
-            @Valid @RequestBody ApplicationStatusRequest request,
-            @AuthenticationPrincipal UserDetails currentUser) {
-        Long organizerId = userService.getUserIdByEmail(currentUser.getUsername());
+            @Valid @RequestBody ApplicationStatusRequest request) {
         TeamApplicationResponse response = tournamentService.updateApplicationStatus(
-                tournamentId, applicationId, request.getAccepted(), organizerId);
+                tournamentId, applicationId, request.getAccepted());
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
+    public ResponseEntity<TournamentResponse> changeTournamentStatus(@PathVariable Long id,
+                                                                     @RequestParam TournamentStatus newStatus) {
+        TournamentResponse updatedTournament = tournamentService.changeTournamentStatus(id, newStatus);
+        return ResponseEntity.ok(updatedTournament);
+    }
+
+    @PatchMapping("/{tournamentId}/applications/{applicationId}/withdraw")
+    @PreAuthorize("@tournamentService.isTeamApplicationLeader(#applicationId, authentication.principal.id)")
+    public ResponseEntity<TeamApplicationResponse> withdrawTeamApplication(@PathVariable Long tournamentId,
+                                                                           @PathVariable Long applicationId) {
+        TeamApplicationResponse updatedApplication = tournamentService.withdrawTeamApplication(tournamentId, applicationId);
+        return ResponseEntity.ok(updatedApplication);
+    }
+
+    @DeleteMapping("/{tournamentId}/teams/{teamId}/remove")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, authentication.principal.id)")
+    public ResponseEntity<TournamentResponse> removeTeamFromTournament(@PathVariable Long tournamentId,
+                                                                       @PathVariable Long teamId) {
+        TournamentResponse updatedTournament = tournamentService.removeTeamFromTournament(tournamentId, teamId);
+        return ResponseEntity.ok(updatedTournament);
+    }
+
 
     private Long getUserIdFromUserDetails(UserDetails currentUser) {
         return userService.getUserIdByEmail(currentUser.getUsername());

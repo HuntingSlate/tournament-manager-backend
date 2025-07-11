@@ -44,7 +44,6 @@ public class Tournament {
     private User organizer;
 
     private Integer maxTeams;
-    private Integer currentTeams;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -58,11 +57,16 @@ public class Tournament {
     )
     private Set<Team> participatingTeams = new HashSet<>();
 
-
     public enum TournamentStatus {
         PENDING,
         ACTIVE,
         COMPLETED,
         CANCELLED
+    }
+    @PrePersist
+    protected void onCreate() {
+        if (this.status == null) {
+            this.status = TournamentStatus.PENDING;
+        }
     }
 }

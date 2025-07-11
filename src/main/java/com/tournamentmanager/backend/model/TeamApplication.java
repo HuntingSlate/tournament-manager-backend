@@ -35,6 +35,7 @@ public class TeamApplication {
     public enum ApplicationStatus {
         PENDING,
         ACCEPTED,
-        REJECTED
+        REJECTED,
+        WITHDRAWN
     }
 }

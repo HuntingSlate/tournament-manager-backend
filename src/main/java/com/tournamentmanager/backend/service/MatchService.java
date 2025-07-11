@@ -16,6 +16,7 @@ import com.tournamentmanager.backend.repository.MatchStatisticsRepository;
 import com.tournamentmanager.backend.repository.PlayerStatisticsRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,29 +33,24 @@ public class MatchService {
     private final UserRepository userRepository;
     private final MatchStatisticsRepository matchStatisticsRepository;
     private final PlayerStatisticsRepository playerStatisticsRepository;
-    private final UserService userService;
 
     public MatchService(MatchRepository matchRepository, TournamentRepository tournamentRepository,
                         TeamRepository teamRepository, UserRepository userRepository,
                         MatchStatisticsRepository matchStatisticsRepository,
-                        PlayerStatisticsRepository playerStatisticsRepository, UserService userService) {
+                        PlayerStatisticsRepository playerStatisticsRepository) {
         this.matchRepository = matchRepository;
         this.tournamentRepository = tournamentRepository;
         this.teamRepository = teamRepository;
         this.userRepository = userRepository;
         this.matchStatisticsRepository = matchStatisticsRepository;
         this.playerStatisticsRepository = playerStatisticsRepository;
-        this.userService = userService;
     }
 
     @Transactional
-    public MatchResponse createMatch(MatchRequest request, Long currentUserId) {
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#request.getTournamentId(), #currentUserId)")
+    public Match createMatch(MatchRequest request) {
         Tournament tournament = tournamentRepository.findById(request.getTournamentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", request.getTournamentId()));
-
-        if (!tournament.getOrganizer().getId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Only the tournament organizer can create matches.");
-        }
 
         Team team1 = teamRepository.findById(request.getTeam1Id())
                 .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", request.getTeam1Id()));
@@ -75,6 +71,9 @@ public class MatchService {
         match.setTeam2(team2);
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
+        match.setRoundNumber(request.getRoundNumber());
+        match.setMatchNumberInRound(request.getMatchNumberInRound());
+        match.setStatus(Match.MatchStatus.SCHEDULED);
 
         if (request.getPrevMatch1Id() != null) {
             Match prevMatch1 = matchRepository.findById(request.getPrevMatch1Id())
@@ -88,7 +87,7 @@ public class MatchService {
         }
 
         match = matchRepository.save(match);
-        return mapToMatchResponse(match);
+        return match;
     }
 
     public MatchResponse getMatchById(Long id) {
@@ -97,62 +96,72 @@ public class MatchService {
         return mapToMatchResponse(match);
     }
 
+    public List<MatchResponse> getMatchesByTournament(Long tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+        return matchRepository.findByTournament(tournament).stream()
+                .map(this::mapToMatchResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
-    public MatchResponse updateMatch(Long id, MatchRequest request, Long currentUserId) {
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
+    public MatchResponse updateMatch(Long id, MatchRequest request) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
-        if (!match.getTournament().getOrganizer().getId().equals(currentUserId)) {
-            throw new UnauthorizedException("Only the tournament organizer can update this match.");
-        }
-
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
+        match.setRoundNumber(request.getRoundNumber());
+        match.setMatchNumberInRound(request.getMatchNumberInRound());
 
-        if (request.getWinningTeamId() != null) {
-            Team winningTeam = teamRepository.findById(request.getWinningTeamId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Winning team", "ID", request.getWinningTeamId()));
-            if (!winningTeam.equals(match.getTeam1()) && !winningTeam.equals(match.getTeam2())) {
-                throw new BadRequestException("Winning team must be one of the participating teams in the match.");
-            }
-            match.setWinningTeam(winningTeam);
-        } else {
-            match.setWinningTeam(null);
-        }
+         if (request.getWinningTeamId() != null) {
+             Team winningTeam = teamRepository.findById(request.getWinningTeamId())
+                     .orElseThrow(() -> new ResourceNotFoundException("Winning team", "ID", request.getWinningTeamId()));
+             if (!winningTeam.equals(match.getTeam1()) && !winningTeam.equals(match.getTeam2())) {
+                 throw new BadRequestException("Winning team must be one of the participating teams in the match.");
+             }
+             match.setWinningTeam(winningTeam);
+         } else {
+             match.setWinningTeam(null);
+         }
 
         match = matchRepository.save(match);
         return mapToMatchResponse(match);
     }
 
     @Transactional
-    public void deleteMatch(Long id, Long currentUserId) {
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
+    public void deleteMatch(Long id) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
-        if (!match.getTournament().getOrganizer().getId().equals(currentUserId)) {
-            throw new UnauthorizedException("Only the tournament organizer can delete this match.");
+        if (match.getTournament().getStatus() == Tournament.TournamentStatus.ACTIVE ||
+                match.getTournament().getStatus() == Tournament.TournamentStatus.COMPLETED) {
+            throw new BadRequestException("Cannot delete matches from an ongoing or finished tournament.");
         }
 
         matchRepository.delete(match);
     }
 
     @Transactional
-    public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests, Long currentUserId) {
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#matchId, #currentUserId)")
+    public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
 
-        if (!match.getTournament().getOrganizer().getId().equals(currentUserId)) {
-            throw new UnauthorizedException("Only the tournament organizer can save match statistics.");
+        if (match.getStatus() != Match.MatchStatus.COMPLETED && match.getStatus() != Match.MatchStatus.IN_PROGRESS) {
+            throw new BadRequestException("Statistics can only be saved for completed or in-progress matches.");
         }
 
+        Set<User> team1Players = match.getTeam1().getTeamMembers().stream().map(PlayerTeam::getUser).collect(Collectors.toSet());
+        Set<User> team2Players = match.getTeam2().getTeamMembers().stream().map(PlayerTeam::getUser).collect(Collectors.toSet());
+
         for (MatchStatisticsRequest req : statisticsRequests) {
-            User player = userService.getUserById(req.getPlayerId());
+            User player = userRepository.findById(req.getPlayerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Player", "ID", req.getPlayerId()));
 
-            Set<PlayerTeam> team1Members = match.getTeam1().getTeamMembers();
-            Set<PlayerTeam> team2Members = match.getTeam2().getTeamMembers();
-
-            boolean isPlayerInMatchTeams = team1Members.stream().anyMatch(pt -> pt.getUser().equals(player)) ||
-                    team2Members.stream().anyMatch(pt -> pt.getUser().equals(player));
+            boolean isPlayerInMatchTeams = team1Players.contains(player) || team2Players.contains(player);
 
             if (!isPlayerInMatchTeams) {
                 throw new BadRequestException("Player " + player.getNickname() + " is not a member of teams participating in this match.");
@@ -194,13 +203,65 @@ public class MatchService {
         }
         playerStatisticsRepository.save(playerStats);
     }
+    @Transactional
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#matchId, #currentUserId)")
+    public MatchResponse recordMatchResult(Long matchId, Integer scoreTeam1, Integer scoreTeam2) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
 
+        if (match.getStatus() == Match.MatchStatus.COMPLETED || match.getStatus() == Match.MatchStatus.CANCELLED) {
+            throw new BadRequestException("Cannot record results for a completed or cancelled match.");
+        }
 
-    private MatchResponse mapToMatchResponse(Match match) {
+        if (scoreTeam1 == null || scoreTeam2 == null || scoreTeam1 < 0 || scoreTeam2 < 0) {
+            throw new BadRequestException("Scores cannot be null or negative.");
+        }
+
+        if (scoreTeam1.equals(scoreTeam2)) {
+            throw new BadRequestException("Draws are not allowed. One team must win.");
+        }
+
+        match.setScoreTeam1(scoreTeam1);
+        match.setScoreTeam2(scoreTeam2);
+        match.setEndDatetime(LocalDateTime.now());
+        match.setStatus(Match.MatchStatus.COMPLETED);
+
+        Team winnerTeam;
+        if (scoreTeam1 > scoreTeam2) {
+            winnerTeam = match.getTeam1();
+        } else {
+            winnerTeam = match.getTeam2();
+        }
+        match.setWinningTeam(winnerTeam);
+
+        Match savedMatch = matchRepository.save(match);
+
+        Optional<Match> nextMatchOptional = matchRepository.findByPrevMatch1OrPrevMatch2(savedMatch, savedMatch);
+
+        if (nextMatchOptional.isPresent()) {
+            Match nextMatch = nextMatchOptional.get();
+
+            if (nextMatch.getPrevMatch1() != null && nextMatch.getPrevMatch1().getId().equals(savedMatch.getId())) {
+                nextMatch.setTeam1(winnerTeam);
+            } else if (nextMatch.getPrevMatch2() != null && nextMatch.getPrevMatch2().getId().equals(savedMatch.getId())) {
+                nextMatch.setTeam2(winnerTeam);
+            }
+            matchRepository.save(nextMatch);
+        }
+
+        return mapToMatchResponse(savedMatch);
+    }
+
+    public MatchResponse mapToMatchResponse(Match match) {
         MatchResponse response = new MatchResponse();
         response.setId(match.getId());
         response.setStartDatetime(match.getStartDatetime());
         response.setEndDatetime(match.getEndDatetime());
+        response.setRoundNumber(match.getRoundNumber());
+        response.setMatchNumberInRound(match.getMatchNumberInRound());
+        response.setScoreTeam1(match.getScoreTeam1());
+        response.setScoreTeam2(match.getScoreTeam2());
+        response.setStatus(match.getStatus());
 
         if (match.getTournament() != null) {
             response.setTournamentId(match.getTournament().getId());
