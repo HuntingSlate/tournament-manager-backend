@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.time.LocalDate;
 
@@ -31,10 +32,10 @@ public class Team {
     private Set<PlayerTeam> teamMembers;
 
     @ManyToMany(mappedBy = "participatingTeams")
-    private Set<Tournament> tournaments;
+    private Set<Tournament> tournaments = new HashSet<>();
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<TeamLink> teamLinks;
+    private Set<TeamLink> teamLinks = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "player_id")

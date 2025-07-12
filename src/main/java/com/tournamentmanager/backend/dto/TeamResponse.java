@@ -13,10 +13,10 @@ public class TeamResponse {
 
     private Long id;
     private String name;
+    private Long gameId;
     private String gameName;
     private Long leaderId;
     private String leaderNickname;
-
     private List<TeamMemberResponse> teamMembers;
-    private List<LinkResponse> links;
+    private List<TeamLinkResponse> teamLinks;
 }

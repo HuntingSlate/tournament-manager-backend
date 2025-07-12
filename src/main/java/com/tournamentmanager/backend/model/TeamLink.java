@@ -22,7 +22,10 @@ public class TeamLink {
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "link_id", nullable = false)
     private Link link;
+
+    @Column(length = 50)
+    private String platformUsername;
 }
