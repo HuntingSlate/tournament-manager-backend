@@ -2,9 +2,12 @@ package com.tournamentmanager.backend.service;
 
 import com.tournamentmanager.backend.dto.GameRequest;
 import com.tournamentmanager.backend.dto.GameResponse;
+import com.tournamentmanager.backend.exception.ConflictException;
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.model.Game;
 import com.tournamentmanager.backend.repository.GameRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,7 +28,11 @@ public class GameService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public Game createGame(GameRequest gameRequest) {
+        if (gameRepository.findByName(gameRequest.getName()) != null) {
+            throw new ConflictException("Game with name '" + gameRequest.getName() + "' already exists.");
+        }
         Game game = new Game();
         game.setName(gameRequest.getName());
         return gameRepository.save(game);
@@ -36,20 +43,31 @@ public class GameService {
                 .orElseThrow(() -> new EntityNotFoundException("Game not found with ID: " + id));
     }
 
+    @Transactional
     public Game updateGame(Long id, GameRequest gameRequest) {
-        return gameRepository.findById(id)
-                .map(existingGame -> {
-                    existingGame.setName(gameRequest.getName());
-                    return gameRepository.save(existingGame);
-                })
-                .orElseThrow(() -> new EntityNotFoundException("Game not found with ID: " + id));
+        Game existingGame = gameRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", id));
+
+        if (!existingGame.getName().equals(gameRequest.getName())) {
+            if (gameRepository.findByName(gameRequest.getName()) != null) {
+                throw new ConflictException("Game with name '" + gameRequest.getName() + "' already exists.");
+            }
+        }
+
+        existingGame.setName(gameRequest.getName());
+        return gameRepository.save(existingGame);
     }
 
+    @Transactional
     public void deleteGame(Long id) {
         if (!gameRepository.existsById(id)) {
-            throw new EntityNotFoundException("Game not found with ID: " + id);
+            throw new ResourceNotFoundException("Game", "ID", id);
         }
         gameRepository.deleteById(id);
+    }
+
+    public Game findGameByName(String name) {
+        return gameRepository.findByName(name);
     }
 
 
