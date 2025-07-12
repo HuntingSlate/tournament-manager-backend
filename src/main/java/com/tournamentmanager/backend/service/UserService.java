@@ -127,6 +127,7 @@ public class UserService {
             link = new Link();
             link.setName(request.getType());
             link.setUrl(request.getUrl());
+            link = linkRepository.save(link);
         }
         Optional<PlayerLink> duplicatePlayerLink = playerLinkRepository.findByUserAndLink(user, link);
         if (duplicatePlayerLink.isPresent() && !duplicatePlayerLink.get().getId().equals(playerLinkId)) {
