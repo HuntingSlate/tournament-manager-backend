@@ -32,7 +32,7 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserProfile(@PathVariable Long id) {
         User user = userService.getUserById(id);
-        return ResponseEntity.ok(mapToUserResponse(user));
+        return ResponseEntity.ok(userService.mapToUserResponse(user));
     }
 
     @GetMapping("/me/links")
