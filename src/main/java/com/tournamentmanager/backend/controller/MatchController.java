@@ -80,11 +80,16 @@ public class MatchController {
 
     @GetMapping("/matches/search")
     public ResponseEntity<List<MatchResponse>> searchMatches(
+            @RequestParam(required = false) Long tournamentId,
+            @RequestParam(required = false) Long gameId,
+            @RequestParam(required = false) Long teamId,
+            @RequestParam(required = false) Long playerId,
             @RequestParam(required = false) String tournamentName,
             @RequestParam(required = false) String gameName,
             @RequestParam(required = false) String teamName,
             @RequestParam(required = false) String playerName) {
-        List<MatchResponse> matches = matchService.searchMatches(tournamentName, gameName, teamName, playerName);
+        List<MatchResponse> matches = matchService.searchMatches(tournamentName,
+                gameName, teamName, playerName, tournamentId, gameId, teamId, playerId);
         return ResponseEntity.ok(matches);
     }
 }

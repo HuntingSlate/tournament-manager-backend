@@ -102,8 +102,11 @@ public class MatchService {
                 .collect(Collectors.toList());
     }
 
-    public List<MatchResponse> searchMatches(String tournamentName, String gameName, String teamName, String playerName) {
-        List<Match> matches = matchRepository.searchMatches(tournamentName, gameName, teamName, playerName);
+    public List<MatchResponse> searchMatches(String tournamentName, String gameName, String teamName,
+                                             String playerName, Long tournamentId, Long gameId, Long teamId,
+                                             Long playerId) {
+        List<Match> matches = matchRepository.searchMatches(tournamentId, tournamentName, gameId,
+                gameName, teamId, teamName, playerId, playerName);
         return matches.stream()
                 .map(this::mapToMatchResponse)
                 .collect(Collectors.toList());
