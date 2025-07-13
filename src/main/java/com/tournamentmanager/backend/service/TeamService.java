@@ -64,6 +64,9 @@ public class TeamService {
         team.setName(request.getName());
         team.setGame(game);
         team.setLeader(leader);
+
+        team = teamRepository.save(team);
+
         PlayerTeam leaderMembership = new PlayerTeam();
         leaderMembership.setUser(leader);
         leaderMembership.setTeam(team);
@@ -86,8 +89,7 @@ public class TeamService {
             }
         }
 
-        Team savedTeam = teamRepository.save(team);
-        return mapToTeamResponse(savedTeam);
+        return mapToTeamResponse(team);
     }
 
     public TeamResponse getTeamById(Long id) {
