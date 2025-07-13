@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -33,4 +34,6 @@ public class TournamentResponse {
     private Integer maxTeams;
     private Integer currentTeams;
     private Tournament.TournamentStatus status;
+
+    private List<TournamentTeamResponse> participatingTeams;
 }

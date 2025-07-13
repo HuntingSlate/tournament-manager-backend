@@ -264,6 +264,7 @@ public class MatchService {
         List<Team> participatingTeams = new ArrayList<>(tournament.getParticipatingTeams());
         Collections.shuffle(participatingTeams);
 
+        LocalDateTime firstRoundStartTime = tournament.getStartDate().atStartOfDay();
 
         int roundNumber = 1;
         for (int i = 0; i < participatingTeams.size(); i += 2) {
@@ -277,6 +278,8 @@ public class MatchService {
             match.setRoundNumber(roundNumber);
             match.setMatchNumberInRound((i / 2) + 1);
             match.setStatus(Match.MatchStatus.SCHEDULED);
+
+            match.setStartDatetime(firstRoundStartTime);
 
             matchRepository.save(match);
         }

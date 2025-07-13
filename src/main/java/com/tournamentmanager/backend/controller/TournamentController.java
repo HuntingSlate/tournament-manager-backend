@@ -141,8 +141,7 @@ public class TournamentController {
         Tournament tournament = tournamentService.startTournament(id, currentUserId);
         matchService.generateFirstRoundMatches(tournament);
 
-        boolean isLanTournament = tournament.getLocation() != null;
-        TournamentResponse response =  tournamentService.mapToTournamentResponse(tournament, isLanTournament);
+        TournamentResponse response = tournamentService.mapToTournamentResponse(tournament);
         return ResponseEntity.ok(response);
     }
 

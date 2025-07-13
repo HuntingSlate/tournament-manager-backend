@@ -1,11 +1,6 @@
 package com.tournamentmanager.backend.service;
 
-import com.tournamentmanager.backend.dto.MatchRequest;
-import com.tournamentmanager.backend.dto.MatchResponse;
-import com.tournamentmanager.backend.dto.TournamentRequest;
-import com.tournamentmanager.backend.dto.TournamentResponse;
-import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
-import com.tournamentmanager.backend.dto.TeamApplicationResponse;
+import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.exception.BadRequestException;
 import com.tournamentmanager.backend.exception.ConflictException;
 import com.tournamentmanager.backend.exception.ResourceNotFoundException;
@@ -77,11 +72,9 @@ public class TournamentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organizer", "ID", organizerId));
 
         Location location = null;
-        boolean isLanTournament = false;
         if (request.getPostalCode() != null && !request.getPostalCode().isEmpty() &&
                 request.getCity() != null && !request.getCity().isEmpty() &&
                 request.getLatitude() != null && request.getLongitude() != null) {
-            isLanTournament = true;
             location = new Location();
             location.setPostalCode(request.getPostalCode());
             location.setCity(request.getCity());
@@ -105,15 +98,14 @@ public class TournamentService {
 
         tournament = tournamentRepository.save(tournament);
 
-        return mapToTournamentResponse(tournament, isLanTournament);
+        return mapToTournamentResponse(tournament);
     }
 
     public TournamentResponse getTournamentById(Long id) {
         Tournament tournament = tournamentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", id));
 
-        boolean isLanTournament = tournament.getLocation() != null;
-        return mapToTournamentResponse(tournament, isLanTournament);
+        return mapToTournamentResponse(tournament);
     }
 
     @Transactional
@@ -138,11 +130,9 @@ public class TournamentService {
         }
 
         Location newLocation = null;
-        boolean isLanTournament = false;
         if (request.getPostalCode() != null && !request.getPostalCode().isEmpty() &&
                 request.getCity() != null && !request.getCity().isEmpty() &&
                 request.getLatitude() != null && request.getLongitude() != null) {
-            isLanTournament = true;
             if (tournament.getLocation() != null) {
                 newLocation = tournament.getLocation();
                 newLocation.setPostalCode(request.getPostalCode());
@@ -176,7 +166,7 @@ public class TournamentService {
         }
 
         tournament = tournamentRepository.save(tournament);
-        return mapToTournamentResponse(tournament, isLanTournament);
+        return mapToTournamentResponse(tournament);
     }
 
     @Transactional
@@ -221,43 +211,49 @@ public class TournamentService {
         }
 
         return tournaments.stream()
-                .map(t -> mapToTournamentResponse(t, t.getLocation() != null))
+                .map(t -> mapToTournamentResponse(t))
                 .collect(Collectors.toList());
     }
 
-    public TournamentResponse mapToTournamentResponse(Tournament tournament, boolean isLanTournament) {
+    public TournamentResponse mapToTournamentResponse(Tournament tournament) {
         TournamentResponse response = new TournamentResponse();
         response.setId(tournament.getId());
         response.setName(tournament.getName());
         response.setDescription(tournament.getDescription());
         response.setStartDate(tournament.getStartDate());
         response.setEndDate(tournament.getEndDate());
-
-        if (tournament.getGame() != null) {
-            response.setGameName(tournament.getGame().getName());
-            response.setGameId(tournament.getGame().getId());
-        }
-        if (tournament.getOrganizer() != null) {
-            response.setOrganizerId(tournament.getOrganizer().getId());
-            response.setOrganizerNickname(tournament.getOrganizer().getNickname());
-        }
-
-        response.setLanTournament(isLanTournament);
-
-        if (tournament.getLocation() != null) {
-            response.setPostalCode(tournament.getLocation().getPostalCode());
-            response.setCity(tournament.getLocation().getCity());
-            response.setStreet(tournament.getLocation().getStreet());
-            response.setBuildingNumber(tournament.getLocation().getBuildingNumber());
-            response.setLatitude(tournament.getLocation().getLatitude());
-            response.setLongitude(tournament.getLocation().getLongitude());
-        }
-
+        response.setGameName(tournament.getGame().getName());
+        response.setGameId(tournament.getGame().getId());
+        response.setOrganizerId(tournament.getOrganizer().getId());
+        response.setOrganizerNickname(tournament.getOrganizer().getNickname());
         response.setMaxTeams(tournament.getMaxTeams());
-        response.setCurrentTeams(tournament.getParticipatingTeams().size());
         response.setStatus(tournament.getStatus());
 
+        response.setCurrentTeams(tournament.getParticipatingTeams().size());
+
+        boolean isLan = tournament.getLocation() != null;
+        response.setLanTournament(isLan);
+        if (isLan) {
+            Location location = tournament.getLocation();
+            response.setPostalCode(location.getPostalCode());
+            response.setCity(location.getCity());
+            response.setStreet(location.getStreet());
+            response.setBuildingNumber(location.getBuildingNumber());
+            response.setLatitude(location.getLatitude());
+            response.setLongitude(location.getLongitude());
+        }
+
+        response.setParticipatingTeams(
+                tournament.getParticipatingTeams().stream()
+                        .map(this::mapToTournamentTeamResponse)
+                        .collect(Collectors.toList())
+        );
+
         return response;
+    }
+
+    private TournamentTeamResponse mapToTournamentTeamResponse(Team team) {
+        return new TournamentTeamResponse(team.getId(), team.getName());
     }
 
     @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
@@ -315,7 +311,7 @@ public class TournamentService {
             }
             team.getTournaments().add(tournament);
 
-        } else { // Rejected
+        } else {
             if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING &&
                     application.getStatus() != TeamApplication.ApplicationStatus.ACCEPTED) {
                 throw new BadRequestException("Application cannot be rejected from its current status (must be PENDING or ACCEPTED).");
@@ -336,7 +332,6 @@ public class TournamentService {
         }
 
         TeamApplication updatedApplication = teamApplicationRepository.save(application);
-//        return mapToTeamApplicationResponse(updatedApplication);
         return null;
     }
 
@@ -376,8 +371,7 @@ public class TournamentService {
         tournament.setStatus(newStatus);
         Tournament updatedTournament = tournamentRepository.save(tournament);
 
-        boolean isLanTournament = updatedTournament.getLocation() != null;
-        return mapToTournamentResponse(updatedTournament, isLanTournament);
+        return mapToTournamentResponse(updatedTournament);
     }
 
     @Transactional
@@ -429,8 +423,7 @@ public class TournamentService {
                     teamApplicationRepository.save(app);
                 });
 
-        boolean isLanTournament = updatedTournament.getLocation() != null;
-        return mapToTournamentResponse(updatedTournament, isLanTournament);
+        return mapToTournamentResponse(updatedTournament);
     }
 
     @Transactional
