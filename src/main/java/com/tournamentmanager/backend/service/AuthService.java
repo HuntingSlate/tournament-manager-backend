@@ -56,7 +56,7 @@ public class AuthService {
         );
         String token = jwtTokenProvider.generateToken(authentication);
 
-        return new AuthResponse(token, user.getId(), user.getEmail(), user.getNickname());
+        return new AuthResponse(token, user.getId(), user.getEmail(), user.getNickname(), user.getRole());
     }
 
     public AuthResponse login(LoginRequest loginRequest) {
@@ -73,6 +73,6 @@ public class AuthService {
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", loginRequest.getEmail()));
 
-        return new AuthResponse(token, user.getId(), user.getEmail(), user.getNickname());
+        return new AuthResponse(token, user.getId(), user.getEmail(), user.getNickname(), user.getRole());
     }
 }
