@@ -226,7 +226,7 @@ public class TournamentService {
                 .collect(Collectors.toList());
     }
 
-    private TournamentResponse mapToTournamentResponse(Tournament tournament, boolean isLanTournament) {
+    public TournamentResponse mapToTournamentResponse(Tournament tournament, boolean isLanTournament) {
         TournamentResponse response = new TournamentResponse();
         response.setId(tournament.getId());
         response.setName(tournament.getName());
@@ -426,6 +426,32 @@ public class TournamentService {
 
         boolean isLanTournament = updatedTournament.getLocation() != null;
         return mapToTournamentResponse(updatedTournament, isLanTournament);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
+    public Tournament startTournament(Long tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+
+        if (tournament.getStatus() != TournamentStatus.PENDING) {
+            throw new BadRequestException("Only PENDING tournaments can be started.");
+        }
+
+        List<Team> participatingTeams = new ArrayList<>(tournament.getParticipatingTeams());
+        if (participatingTeams.size() < 2) {
+            throw new BadRequestException("At least 2 teams are required to start the tournament.");
+        }
+
+        int numTeams = participatingTeams.size();
+        if ((numTeams & (numTeams - 1)) != 0) {
+            throw new BadRequestException("Number of participating teams must be a power of two to start the bracket (e.g., 2, 4, 8, 16...). Current teams: " + numTeams);
+        }
+
+        tournament.setStatus(TournamentStatus.ACTIVE);
+        tournamentRepository.save(tournament);
+
+        return tournament;
     }
 
     public boolean isOrganizer(Long tournamentId, Long userId) {

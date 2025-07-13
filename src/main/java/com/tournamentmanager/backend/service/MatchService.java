@@ -19,9 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -250,6 +248,28 @@ public class MatchService {
         }
 
         return mapToMatchResponse(savedMatch);
+    }
+
+    public void generateFirstRoundMatches(Tournament tournament) {
+        List<Team> participatingTeams = new ArrayList<>(tournament.getParticipatingTeams());
+        Collections.shuffle(participatingTeams);
+
+
+        int roundNumber = 1;
+        for (int i = 0; i < participatingTeams.size(); i += 2) {
+            Team team1 = participatingTeams.get(i);
+            Team team2 = participatingTeams.get(i + 1);
+
+            Match match = new Match();
+            match.setTournament(tournament);
+            match.setTeam1(team1);
+            match.setTeam2(team2);
+            match.setRoundNumber(roundNumber);
+            match.setMatchNumberInRound((i / 2) + 1);
+            match.setStatus(Match.MatchStatus.SCHEDULED);
+
+            matchRepository.save(match);
+        }
     }
 
     public MatchResponse mapToMatchResponse(Match match) {

@@ -5,8 +5,10 @@ import com.tournamentmanager.backend.dto.TournamentResponse;
 import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
 import com.tournamentmanager.backend.dto.TeamApplicationResponse;
 import com.tournamentmanager.backend.dto.MatchResponse;
+import com.tournamentmanager.backend.model.Tournament;
 import com.tournamentmanager.backend.model.Tournament.TournamentStatus;
 import com.tournamentmanager.backend.model.User;
+import com.tournamentmanager.backend.service.MatchService;
 import com.tournamentmanager.backend.service.TournamentService;
 import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -28,10 +30,12 @@ public class TournamentController {
 
     private final TournamentService tournamentService;
     private final UserService userService;
+    private final MatchService matchService;
 
-    public TournamentController(TournamentService tournamentService, UserService userService) {
+    public TournamentController(TournamentService tournamentService, UserService userService, MatchService matchService) {
         this.tournamentService = tournamentService;
         this.userService = userService;
+        this.matchService = matchService;
     }
 
     @PostMapping
@@ -116,6 +120,17 @@ public class TournamentController {
                                                                        @PathVariable Long teamId) {
         TournamentResponse updatedTournament = tournamentService.removeTeamFromTournament(tournamentId, teamId);
         return ResponseEntity.ok(updatedTournament);
+    }
+
+    @PatchMapping("/{id}/start")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
+    public ResponseEntity<TournamentResponse> startTournament(@PathVariable Long id) {
+        Tournament tournament = tournamentService.startTournament(id);
+        matchService.generateFirstRoundMatches(tournament);
+
+        boolean isLanTournament = tournament.getLocation() != null;
+        TournamentResponse response =  tournamentService.mapToTournamentResponse(tournament, isLanTournament);
+        return ResponseEntity.ok(response);
     }
 
 
