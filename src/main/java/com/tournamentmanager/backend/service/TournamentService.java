@@ -69,7 +69,6 @@ public class TournamentService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public TournamentResponse createTournament(TournamentRequest request, Long organizerId) {
         Game game = gameRepository.findById(request.getGameId())
                 .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", request.getGameId()));
@@ -272,7 +271,6 @@ public class TournamentService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #organizerId)")
     public TeamApplicationResponse updateApplicationStatus(Long tournamentId, Long applicationId, Boolean accepted) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
