@@ -32,7 +32,7 @@ public class UserController {
     public ResponseEntity<UserResponse> getMyProfile(@AuthenticationPrincipal UserDetails currentUser) {
         Long userId = userService.getUserIdByEmail(currentUser.getUsername());
         User user = userService.getUserById(userId);
-        return ResponseEntity.ok(mapToUserResponse(user));
+        return ResponseEntity.ok(userService.mapToUserResponse(user));
     }
 
     @GetMapping("/{id}")
@@ -106,15 +106,5 @@ public class UserController {
                 .map(teamService::mapToTeamResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(response);
-    }
-
-    private UserResponse mapToUserResponse(User user) {
-        UserResponse response = new UserResponse();
-        response.setId(user.getId());
-        response.setEmail(user.getEmail());
-        response.setNickname(user.getNickname());
-        response.setFullName(user.getFullName());
-        response.setLinks(userService.getUserLinks(user.getId()));
-        return response;
     }
 }

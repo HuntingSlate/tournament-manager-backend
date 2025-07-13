@@ -228,6 +228,7 @@ public class UserService {
         response.setNickname(user.getNickname());
         response.setFullName(user.getFullName());
         response.setLinks(getUserLinks(user.getId()));
+        response.setRole(user.getRole());
         return response;
     }
 }

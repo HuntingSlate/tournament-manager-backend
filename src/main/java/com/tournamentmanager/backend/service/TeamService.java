@@ -162,12 +162,19 @@ public class TeamService {
         User memberToRemove = userRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member", "ID", memberId));
 
-        if (!team.getLeader().getId().equals(currentUserId)) {
-            throw new UnauthorizedException("Only the team leader can remove members from this team.");
+        boolean isTeamLeader = team.getLeader().getId().equals(currentUserId);
+        boolean isRemovingSelf = memberToRemove.getId().equals(currentUserId);
+
+        if (!isTeamLeader && !isRemovingSelf) {
+            throw new UnauthorizedException("Only the team leader or the member themselves can remove a member from this team.");
         }
 
         PlayerTeam playerTeam = playerTeamRepository.findByTeamAndUser(team, memberToRemove)
                 .orElseThrow(() -> new BadRequestException("User is not a member of this team."));
+
+        if (team.getLeader().getId().equals(memberToRemove.getId()) && !isTeamLeader) {
+            throw new BadRequestException("Only the team leader can remove themselves as leader. Change leader first.");
+        }
 
         playerTeamRepository.delete(playerTeam);
 
