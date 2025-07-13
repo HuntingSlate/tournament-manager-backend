@@ -272,11 +272,16 @@ public class TournamentService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
-    public TeamApplicationResponse updateApplicationStatus(Long tournamentId, Long applicationId,
-                                                           Boolean accepted,  Long currentUserId) {
-        Tournament tournament = tournamentRepository.findById(tournamentId)
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #organizerId)")
+    public Void updateApplicationStatus(Long tournamentId, Long applicationId, Boolean accepted, Long organizerId) {
+        Tournament tournament = tournamentRepository.findByIdWithParticipatingTeams(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+
+        User currentUser = userRepository.findById(organizerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "ID", organizerId));
+        if (!tournament.getOrganizer().getId().equals(organizerId) && !currentUser.getRole().equals(Roles.ROLE_ADMIN)) {
+            throw new UnauthorizedException("Only the tournament organizer or an Admin can update application status.");
+        }
 
         TeamApplication application = teamApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application", "ID", applicationId));
@@ -309,9 +314,8 @@ public class TournamentService {
                 team.setTournaments(new HashSet<>());
             }
             team.getTournaments().add(tournament);
-            teamRepository.save(team);
 
-        } else {
+        } else { // Rejected
             if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING &&
                     application.getStatus() != TeamApplication.ApplicationStatus.ACCEPTED) {
                 throw new BadRequestException("Application cannot be rejected from its current status (must be PENDING or ACCEPTED).");
@@ -326,14 +330,14 @@ public class TournamentService {
                 Team team = application.getTeam();
                 if (team.getTournaments() != null) {
                     team.getTournaments().remove(tournament);
-                    teamRepository.save(team);
                 }
             }
             application.setStatus(TeamApplication.ApplicationStatus.REJECTED);
         }
 
         TeamApplication updatedApplication = teamApplicationRepository.save(application);
-        return mapToTeamApplicationResponse(updatedApplication);
+//        return mapToTeamApplicationResponse(updatedApplication);
+        return null;
     }
 
     private TeamApplicationResponse mapToTeamApplicationResponse(TeamApplication application) {

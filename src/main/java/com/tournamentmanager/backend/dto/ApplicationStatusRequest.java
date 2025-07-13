@@ -9,9 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApplicationStatusRequest {
-    @NotNull(message = "Application ID cannot be null")
-    private Long applicationId;
-
     @NotNull(message = "Status cannot be null")
     private Boolean accepted;
 }

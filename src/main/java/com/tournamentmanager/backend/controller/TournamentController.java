@@ -91,16 +91,16 @@ public class TournamentController {
     }
 
     @PutMapping("/{tournamentId}/applications/{applicationId}/status")
-    public ResponseEntity<TeamApplicationResponse> updateApplicationStatus(
+    public ResponseEntity<Void> updateApplicationStatus(
             @PathVariable Long tournamentId,
             @PathVariable Long applicationId,
             @Valid @RequestBody ApplicationStatusRequest request,
             @AuthenticationPrincipal UserDetails currentUser) {
 
         Long currentUserId = getUserIdFromUserDetails(currentUser);
-        TeamApplicationResponse response = tournamentService.updateApplicationStatus(
+        tournamentService.updateApplicationStatus(
                 tournamentId, applicationId, request.getAccepted(), currentUserId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok().build();
     }
 
     @PatchMapping("/{id}/status")

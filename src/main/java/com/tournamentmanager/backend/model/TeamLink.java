@@ -1,15 +1,15 @@
 package com.tournamentmanager.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 import java.io.Serializable;
 
 @Entity
 @Table(name = "team_link")
-@Data
+@Getter
+@Setter
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor
 @AllArgsConstructor
 public class TeamLink {
