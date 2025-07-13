@@ -46,7 +46,7 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#request.getTournamentId(), #currentUserId)")
-    public Match createMatch(MatchRequest request) {
+    public Match createMatch(MatchRequest request, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(request.getTournamentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", request.getTournamentId()));
 
@@ -114,7 +114,7 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public MatchResponse updateMatch(Long id, MatchRequest request) {
+    public MatchResponse updateMatch(Long id, MatchRequest request, Long currentUserId) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
@@ -140,7 +140,7 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public void deleteMatch(Long id) {
+    public void deleteMatch(Long id,  Long currentUserId) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
@@ -154,7 +154,7 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#matchId, #currentUserId)")
-    public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests) {
+    public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests, Long currentUserId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
 
@@ -213,7 +213,7 @@ public class MatchService {
     }
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#matchId, #currentUserId)")
-    public MatchResponse recordMatchResult(Long matchId, Integer scoreTeam1, Integer scoreTeam2) {
+    public MatchResponse recordMatchResult(Long matchId, Integer scoreTeam1, Integer scoreTeam2, Long currentUserId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
 

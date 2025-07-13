@@ -18,6 +18,7 @@ public class TournamentResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private String gameName;
+    private Long gameId;
     private Long organizerId;
     private String organizerNickname;
 

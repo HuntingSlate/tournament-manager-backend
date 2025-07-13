@@ -177,7 +177,7 @@ public class DataLoader {
 
                         teamApplicationRepository.findByTeamAndTournament(team, tournament)
                                 .ifPresent(app -> {
-                                    tournamentService.updateApplicationStatus(tournament.getId(), app.getId(), true);
+                                    tournamentService.updateApplicationStatus(tournament.getId(), app.getId(), true, adminUser.getId());
                                     log.info("Application for team " + team.getName() + " accepted by Admin.");
                                 });
                     }
