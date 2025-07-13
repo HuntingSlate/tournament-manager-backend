@@ -77,4 +77,14 @@ public class MatchController {
     public void deleteMatch(@PathVariable Long id) {
         matchService.deleteMatch(id);
     }
+
+    @GetMapping("/matches/search")
+    public ResponseEntity<List<MatchResponse>> searchMatches(
+            @RequestParam(required = false) String tournamentName,
+            @RequestParam(required = false) String gameName,
+            @RequestParam(required = false) String teamName,
+            @RequestParam(required = false) String playerName) {
+        List<MatchResponse> matches = matchService.searchMatches(tournamentName, gameName, teamName, playerName);
+        return ResponseEntity.ok(matches);
+    }
 }

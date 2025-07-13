@@ -102,6 +102,13 @@ public class MatchService {
                 .collect(Collectors.toList());
     }
 
+    public List<MatchResponse> searchMatches(String tournamentName, String gameName, String teamName, String playerName) {
+        List<Match> matches = matchRepository.searchMatches(tournamentName, gameName, teamName, playerName);
+        return matches.stream()
+                .map(this::mapToMatchResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
     public MatchResponse updateMatch(Long id, MatchRequest request) {
