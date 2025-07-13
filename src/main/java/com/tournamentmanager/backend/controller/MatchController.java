@@ -64,7 +64,6 @@ public class MatchController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
     @PatchMapping("/matches/{id}/record-result")
     public ResponseEntity<MatchResponse> recordMatchResult(@PathVariable Long id,
                                                            @RequestParam @NotNull Integer scoreTeam1,
@@ -76,7 +75,6 @@ public class MatchController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
     @PostMapping("/matches/{id}/statistics")
     public ResponseEntity<MatchResponse> saveMatchStatistics(@PathVariable Long id,
                                                              @Valid @RequestBody List<MatchStatisticsRequest> statisticsRequests,
@@ -87,7 +85,6 @@ public class MatchController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, authentication.principal.id)")
     @DeleteMapping("/matches/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMatch(@PathVariable Long id,

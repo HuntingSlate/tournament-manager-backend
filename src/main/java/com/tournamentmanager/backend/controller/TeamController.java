@@ -44,45 +44,49 @@ public class TeamController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#id, authentication.principal.id)")
     public ResponseEntity<TeamResponse> updateTeam(@PathVariable Long id,
-                                                   @Valid @RequestBody TeamRequest request) {
-        TeamResponse response = teamService.updateTeam(id, request);
+                                                   @Valid @RequestBody TeamRequest request,
+                                                   @AuthenticationPrincipal UserDetails currentUser) {
+
+        Long currentUserId = getUserIdFromUserDetails(currentUser);
+        TeamResponse response = teamService.updateTeam(id, request, currentUserId);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#id, authentication.principal.id)")
-    public ResponseEntity<Void> deleteTeam(@PathVariable Long id) {
-        teamService.deleteTeam(id);
+    public ResponseEntity<Void> deleteTeam(@PathVariable Long id,
+                                           @AuthenticationPrincipal UserDetails currentUser) {
+
+        Long currentUserId = getUserIdFromUserDetails(currentUser);
+        teamService.deleteTeam(id, currentUserId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{teamId}/members/{memberId}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, authentication.principal.id)")
     public ResponseEntity<TeamResponse> addTeamMember(@PathVariable Long teamId,
                                                       @PathVariable Long memberId,
                                                       @AuthenticationPrincipal UserDetails currentUser) {
+
         Long currentUserId = getUserIdFromUserDetails(currentUser);
         TeamResponse response = teamService.addTeamMember(teamId, memberId, currentUserId);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{teamId}/members/{memberId}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, authentication.principal.id)")
     public ResponseEntity<TeamResponse> removeTeamMember(@PathVariable Long teamId,
                                                          @PathVariable Long memberId,
                                                          @AuthenticationPrincipal UserDetails currentUser) {
+
         Long currentUserId = getUserIdFromUserDetails(currentUser);
         TeamResponse response = teamService.removeTeamMember(teamId, memberId, currentUserId);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{teamId}/apply/{tournamentId}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, authentication.principal.id)")
     public ResponseEntity<TeamResponse> applyToTournament(@PathVariable Long teamId,
                                                           @PathVariable Long tournamentId,
                                                           @AuthenticationPrincipal UserDetails currentUser) {
+
         Long currentUserId = getUserIdFromUserDetails(currentUser);
         TeamResponse response = teamService.applyToTournament(teamId, tournamentId, currentUserId);
         return ResponseEntity.ok(response);
@@ -103,31 +107,31 @@ public class TeamController {
     }
 
     @PostMapping("/{teamId}/links")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, authentication.principal.id)")
     public ResponseEntity<TeamLinkResponse> addTeamLink(@PathVariable Long teamId,
                                                         @Valid @RequestBody TeamLinkRequest request,
                                                         @AuthenticationPrincipal UserDetails currentUser) {
+
         Long currentUserId = getUserIdFromUserDetails(currentUser);
         TeamLinkResponse response = teamService.addTeamLink(teamId, request, currentUserId);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @PutMapping("/{teamId}/links/{teamLinkId}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, authentication.principal.id)")
     public ResponseEntity<TeamLinkResponse> updateTeamLink(@PathVariable Long teamId,
                                                            @PathVariable Long teamLinkId,
                                                            @Valid @RequestBody TeamLinkRequest request,
                                                            @AuthenticationPrincipal UserDetails currentUser) {
+
         Long currentUserId = getUserIdFromUserDetails(currentUser);
         TeamLinkResponse response = teamService.updateTeamLink(teamId, teamLinkId, request, currentUserId);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{teamId}/links/{teamLinkId}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, authentication.principal.id)")
     public ResponseEntity<Void> deleteTeamLink(@PathVariable Long teamId,
                                                @PathVariable Long teamLinkId,
                                                @AuthenticationPrincipal UserDetails currentUser) {
+
         Long currentUserId = getUserIdFromUserDetails(currentUser);
         teamService.deleteTeamLink(teamId, teamLinkId, currentUserId);
         return ResponseEntity.noContent().build();

@@ -100,7 +100,7 @@ public class TeamService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#id, #currentUserId)")
-    public TeamResponse updateTeam(Long id, TeamRequest request) {
+    public TeamResponse updateTeam(Long id, TeamRequest request, Long currentUserId) {
         Team existingTeam = teamRepository.findByIdWithTeamLinks(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", id));
 
@@ -125,7 +125,7 @@ public class TeamService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#id, #currentUserId)")
-    public void deleteTeam(Long id) {
+    public void deleteTeam(Long id, Long currentUserId) {
         Team team = teamRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", id));
 
