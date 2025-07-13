@@ -1,25 +1,31 @@
 package com.tournamentmanager.backend.controller;
 
 import com.tournamentmanager.backend.dto.*;
+import com.tournamentmanager.backend.model.Team;
 import com.tournamentmanager.backend.model.User;
+import com.tournamentmanager.backend.service.TeamService;
 import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
     private final UserService userService;
+    private final TeamService teamService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, TeamService teamService) {
         this.userService = userService;
+        this.teamService = teamService;
     }
 
     @GetMapping("/me")
@@ -87,6 +93,18 @@ public class UserController {
     public ResponseEntity<List<UserResponse>> searchUsers(
             @RequestParam(required = false) String nickname) {
         List<UserResponse> response = userService.searchUsersByNickname(nickname);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me/teams")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<TeamResponse>> getMyTeams(@AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = userService.getUserIdByEmail(currentUser.getUsername());
+        List<Team> teams = userService.getTeamsForUser(userId);
+
+        List<TeamResponse> response = teams.stream()
+                .map(teamService::mapToTeamResponse)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
 
