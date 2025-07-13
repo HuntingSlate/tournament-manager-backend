@@ -25,6 +25,12 @@ public class Location {
     @Column(length = 50)
     private String street;
 
-    private Integer number;
+    private Integer buildingNumber;
+
+    @Column(nullable = true)
+    private Double latitude;
+
+    @Column(nullable = true)
+    private Double longitude;
 
 }

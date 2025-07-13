@@ -24,7 +24,9 @@ public class TournamentResponse {
     private String postalCode;
     private String city;
     private String street;
-    private Integer number;
+    private Integer buildingNumber;
+    private Double latitude;
+    private Double longitude;
     private boolean isLanTournament;
 
     private Integer maxTeams;

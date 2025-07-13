@@ -80,13 +80,16 @@ public class TournamentService {
         Location location = null;
         boolean isLanTournament = false;
         if (request.getPostalCode() != null && !request.getPostalCode().isEmpty() &&
-                request.getCity() != null && !request.getCity().isEmpty()) {
+                request.getCity() != null && !request.getCity().isEmpty() &&
+                request.getLatitude() != null && request.getLongitude() != null) {
             isLanTournament = true;
             location = new Location();
             location.setPostalCode(request.getPostalCode());
             location.setCity(request.getCity());
             location.setStreet(request.getStreet());
-            location.setNumber(request.getNumber());
+            location.setBuildingNumber(request.getBuildingNumber());
+            location.setLatitude(request.getLatitude());
+            location.setLongitude(request.getLongitude());
             location = locationRepository.save(location);
         }
 
@@ -138,21 +141,26 @@ public class TournamentService {
         Location newLocation = null;
         boolean isLanTournament = false;
         if (request.getPostalCode() != null && !request.getPostalCode().isEmpty() &&
-                request.getCity() != null && !request.getCity().isEmpty()) {
+                request.getCity() != null && !request.getCity().isEmpty() &&
+                request.getLatitude() != null && request.getLongitude() != null) {
             isLanTournament = true;
             if (tournament.getLocation() != null) {
                 newLocation = tournament.getLocation();
                 newLocation.setPostalCode(request.getPostalCode());
                 newLocation.setCity(request.getCity());
                 newLocation.setStreet(request.getStreet());
-                newLocation.setNumber(request.getNumber());
+                newLocation.setBuildingNumber(request.getBuildingNumber());
+                newLocation.setLatitude(request.getLatitude());
+                newLocation.setLongitude(request.getLongitude());
                 locationRepository.save(newLocation);
             } else {
                 newLocation = new Location();
                 newLocation.setPostalCode(request.getPostalCode());
                 newLocation.setCity(request.getCity());
                 newLocation.setStreet(request.getStreet());
-                newLocation.setNumber(request.getNumber());
+                newLocation.setBuildingNumber(request.getBuildingNumber());
+                newLocation.setLatitude(request.getLatitude());
+                newLocation.setLongitude(request.getLongitude());
                 newLocation = locationRepository.save(newLocation);
             }
             tournament.setLocation(newLocation);
@@ -167,7 +175,6 @@ public class TournamentService {
         if (request.getMaxTeams() != null && request.getMaxTeams() < tournament.getParticipatingTeams().size()) {
             throw new BadRequestException("Max teams cannot be less than the current number of participating teams.");
         }
-
 
         tournament = tournamentRepository.save(tournament);
         return mapToTournamentResponse(tournament, isLanTournament);
@@ -241,7 +248,9 @@ public class TournamentService {
             response.setPostalCode(tournament.getLocation().getPostalCode());
             response.setCity(tournament.getLocation().getCity());
             response.setStreet(tournament.getLocation().getStreet());
-            response.setNumber(tournament.getLocation().getNumber());
+            response.setBuildingNumber(tournament.getLocation().getBuildingNumber());
+            response.setLatitude(tournament.getLocation().getLatitude());
+            response.setLongitude(tournament.getLocation().getLongitude());
         }
 
         response.setMaxTeams(tournament.getMaxTeams());
