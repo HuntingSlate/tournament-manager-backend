@@ -1,20 +1,14 @@
 package com.tournamentmanager.backend.service;
 
-import com.tournamentmanager.backend.dto.ChangePasswordRequest;
-import com.tournamentmanager.backend.dto.PlayerLinkRequest;
-import com.tournamentmanager.backend.dto.PlayerLinkResponse;
-import com.tournamentmanager.backend.dto.UserProfileUpdateRequest;
-import com.tournamentmanager.backend.dto.UserResponse;
+import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.exception.BadRequestException;
 import com.tournamentmanager.backend.exception.ConflictException;
 import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.exception.UnauthorizedException;
-import com.tournamentmanager.backend.model.Link;
-import com.tournamentmanager.backend.model.PlayerLink;
-import com.tournamentmanager.backend.model.User;
-import com.tournamentmanager.backend.repository.LinkRepository;
-import com.tournamentmanager.backend.repository.PlayerLinkRepository;
-import com.tournamentmanager.backend.repository.UserRepository;
+import com.tournamentmanager.backend.model.*;
+import com.tournamentmanager.backend.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,15 +24,21 @@ public class UserService {
     private final LinkRepository linkRepository;
     private final PlayerLinkRepository playerLinkRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PlayerTeamRepository playerTeamRepository;
+    private final TeamRepository teamRepository;
 
     public UserService(UserRepository userRepository,
                        LinkRepository linkRepository,
                        PlayerLinkRepository playerLinkRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       PlayerTeamRepository playerTeamRepository,
+                       TeamRepository teamRepository) {
         this.userRepository = userRepository;
         this.linkRepository = linkRepository;
         this.playerLinkRepository = playerLinkRepository;
         this.passwordEncoder = passwordEncoder;
+        this.playerTeamRepository = playerTeamRepository;
+        this.teamRepository = teamRepository;
     }
 
     public Long getUserIdByEmail(String email) {
@@ -52,16 +52,19 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "ID", userId));
     }
 
+    @Transactional
     public List<PlayerLinkResponse> getUserLinks(Long userId) {
         User user = getUserById(userId);
-        return user.getPlayerLinks().stream()
+
+        List<PlayerLink> playerLinks = playerLinkRepository.findByUser(user);
+
+        return playerLinks.stream()
                 .map(this::mapToPlayerLinkResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional
     public PlayerLinkResponse addLinkToUser(Long userId, PlayerLinkRequest request) {
-
         User user = getUserById(userId);
 
         Optional<Link> existingLink = linkRepository.findByNameAndUrl(request.getType(), request.getUrl());
@@ -73,6 +76,7 @@ public class UserService {
             link = new Link();
             link.setName(request.getType());
             link.setUrl(request.getUrl());
+            link = linkRepository.save(link);
         }
 
         if (playerLinkRepository.findByUserAndLink(user, link).isPresent()) {
@@ -85,6 +89,7 @@ public class UserService {
         playerLink.setPlatformUsername(request.getPlatformUsername());
 
         playerLink = playerLinkRepository.save(playerLink);
+
         return mapToPlayerLinkResponse(playerLink);
     }
 
@@ -120,6 +125,7 @@ public class UserService {
             link = new Link();
             link.setName(request.getType());
             link.setUrl(request.getUrl());
+            link = linkRepository.save(link);
         }
         Optional<PlayerLink> duplicatePlayerLink = playerLinkRepository.findByUserAndLink(user, link);
         if (duplicatePlayerLink.isPresent() && !duplicatePlayerLink.get().getId().equals(playerLinkId)) {
@@ -181,6 +187,18 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @Transactional(readOnly = true)
+    public List<Team> getTeamsForUser(Long userId) {
+        User user = getUserById(userId);
+
+        List<PlayerTeam> playerTeams = playerTeamRepository.findByUser(user);
+
+        return playerTeams.stream()
+                .map(PlayerTeam::getTeam)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
     public List<UserResponse> searchUsersByNickname(String nickname) {
         List<User> users;
         if (nickname != null && !nickname.isEmpty()) {
@@ -209,13 +227,8 @@ public class UserService {
         response.setEmail(user.getEmail());
         response.setNickname(user.getNickname());
         response.setFullName(user.getFullName());
-        if (user.getPlayerLinks() != null && !user.getPlayerLinks().isEmpty()) {
-            response.setLinks(user.getPlayerLinks().stream()
-                    .map(this::mapToPlayerLinkResponse)
-                    .collect(Collectors.toList()));
-        } else {
-            response.setLinks(List.of());
-        }
+        response.setLinks(getUserLinks(user.getId()));
+        response.setRole(user.getRole());
         return response;
     }
 }

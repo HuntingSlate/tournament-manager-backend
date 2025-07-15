@@ -1,5 +1,6 @@
 package com.tournamentmanager.backend.dto;
 
+import com.tournamentmanager.backend.model.Roles;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -15,4 +16,5 @@ public class UserResponse {
     private String nickname;
     private String fullName;
     private List<PlayerLinkResponse> links;
+    private Roles role;
 }

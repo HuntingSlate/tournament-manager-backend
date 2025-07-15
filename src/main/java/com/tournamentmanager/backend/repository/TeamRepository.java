@@ -12,10 +12,12 @@ import java.util.Optional;
 
 @Repository
 public interface TeamRepository extends JpaRepository<Team, Long> {
-    List<Team> findByNameContainingIgnoreCase(String name);
-
+    Optional<Team> findByName(String name);
     Optional<Team> findByNameAndGame(String name, Game game);
 
+    List<Team> findByNameContainingIgnoreCase(String name);
     @Query("SELECT DISTINCT t FROM Team t JOIN t.teamMembers pt JOIN pt.user u WHERE LOWER(u.nickname) LIKE LOWER(CONCAT('%', :playerName, '%'))")
     List<Team> findByPlayerNicknameContainingIgnoreCase(@Param("playerName") String playerName);
+    @Query("SELECT t FROM Team t LEFT JOIN FETCH t.teamLinks tl LEFT JOIN FETCH tl.link WHERE t.id = :id")
+    Optional<Team> findByIdWithTeamLinks(@Param("id") Long id);
 }

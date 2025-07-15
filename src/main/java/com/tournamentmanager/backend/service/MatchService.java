@@ -19,9 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,7 +46,7 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#request.getTournamentId(), #currentUserId)")
-    public Match createMatch(MatchRequest request) {
+    public Match createMatch(MatchRequest request, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(request.getTournamentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", request.getTournamentId()));
 
@@ -104,9 +102,19 @@ public class MatchService {
                 .collect(Collectors.toList());
     }
 
+    public List<MatchResponse> searchMatches(String tournamentName, String gameName, String teamName,
+                                             String playerName, Long tournamentId, Long gameId, Long teamId,
+                                             Long playerId) {
+        List<Match> matches = matchRepository.searchMatches(tournamentId, tournamentName, gameId,
+                gameName, teamId, teamName, playerId, playerName);
+        return matches.stream()
+                .map(this::mapToMatchResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public MatchResponse updateMatch(Long id, MatchRequest request) {
+    public MatchResponse updateMatch(Long id, MatchRequest request, Long currentUserId) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
@@ -132,7 +140,7 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public void deleteMatch(Long id) {
+    public void deleteMatch(Long id,  Long currentUserId) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
@@ -146,7 +154,7 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#matchId, #currentUserId)")
-    public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests) {
+    public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests, Long currentUserId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
 
@@ -205,7 +213,7 @@ public class MatchService {
     }
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#matchId, #currentUserId)")
-    public MatchResponse recordMatchResult(Long matchId, Integer scoreTeam1, Integer scoreTeam2) {
+    public MatchResponse recordMatchResult(Long matchId, Integer scoreTeam1, Integer scoreTeam2, Long currentUserId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
 
@@ -250,6 +258,31 @@ public class MatchService {
         }
 
         return mapToMatchResponse(savedMatch);
+    }
+
+    public void generateFirstRoundMatches(Tournament tournament) {
+        List<Team> participatingTeams = new ArrayList<>(tournament.getParticipatingTeams());
+        Collections.shuffle(participatingTeams);
+
+        LocalDateTime firstRoundStartTime = tournament.getStartDate().atStartOfDay();
+
+        int roundNumber = 1;
+        for (int i = 0; i < participatingTeams.size(); i += 2) {
+            Team team1 = participatingTeams.get(i);
+            Team team2 = participatingTeams.get(i + 1);
+
+            Match match = new Match();
+            match.setTournament(tournament);
+            match.setTeam1(team1);
+            match.setTeam2(team2);
+            match.setRoundNumber(roundNumber);
+            match.setMatchNumberInRound((i / 2) + 1);
+            match.setStatus(Match.MatchStatus.SCHEDULED);
+
+            match.setStartDatetime(firstRoundStartTime);
+
+            matchRepository.save(match);
+        }
     }
 
     public MatchResponse mapToMatchResponse(Match match) {

@@ -34,7 +34,9 @@ public class TournamentRequest {
     private String postalCode;
     private String city;
     private String street;
-    private Integer number;
+    private Integer buildingNumber;
+    private Double latitude;
+    private Double longitude;
 
     @NotNull(message = "Max teams cannot be null")
     @Min(value = 2, message = "Tournament must have at least 2 teams")

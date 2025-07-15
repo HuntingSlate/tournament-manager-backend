@@ -1,18 +1,14 @@
 package com.tournamentmanager.backend.service;
 
-import com.tournamentmanager.backend.dto.MatchRequest;
-import com.tournamentmanager.backend.dto.MatchResponse;
-import com.tournamentmanager.backend.dto.TournamentRequest;
-import com.tournamentmanager.backend.dto.TournamentResponse;
-import com.tournamentmanager.backend.dto.ApplicationStatusRequest;
-import com.tournamentmanager.backend.dto.TeamApplicationResponse;
+import com.tournamentmanager.backend.Specification.TournamentSpecification;
+import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.exception.BadRequestException;
 import com.tournamentmanager.backend.exception.ConflictException;
 import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.exception.UnauthorizedException;
 import com.tournamentmanager.backend.model.Game;
 import com.tournamentmanager.backend.model.Location;
-import com.tournamentmanager.backend.model.Match;
+import jakarta.persistence.criteria.Predicate;
 import com.tournamentmanager.backend.model.Tournament;
 import com.tournamentmanager.backend.model.Tournament.TournamentStatus;
 import com.tournamentmanager.backend.model.User;
@@ -26,6 +22,7 @@ import com.tournamentmanager.backend.repository.UserRepository;
 import com.tournamentmanager.backend.repository.TeamRepository;
 import com.tournamentmanager.backend.repository.TeamApplicationRepository;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,7 +66,6 @@ public class TournamentService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public TournamentResponse createTournament(TournamentRequest request, Long organizerId) {
         Game game = gameRepository.findById(request.getGameId())
                 .orElseThrow(() -> new ResourceNotFoundException("Game", "ID", request.getGameId()));
@@ -78,15 +74,16 @@ public class TournamentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organizer", "ID", organizerId));
 
         Location location = null;
-        boolean isLanTournament = false;
         if (request.getPostalCode() != null && !request.getPostalCode().isEmpty() &&
-                request.getCity() != null && !request.getCity().isEmpty()) {
-            isLanTournament = true;
+                request.getCity() != null && !request.getCity().isEmpty() &&
+                request.getLatitude() != null && request.getLongitude() != null) {
             location = new Location();
             location.setPostalCode(request.getPostalCode());
             location.setCity(request.getCity());
             location.setStreet(request.getStreet());
-            location.setNumber(request.getNumber());
+            location.setBuildingNumber(request.getBuildingNumber());
+            location.setLatitude(request.getLatitude());
+            location.setLongitude(request.getLongitude());
             location = locationRepository.save(location);
         }
 
@@ -103,20 +100,19 @@ public class TournamentService {
 
         tournament = tournamentRepository.save(tournament);
 
-        return mapToTournamentResponse(tournament, isLanTournament);
+        return mapToTournamentResponse(tournament);
     }
 
     public TournamentResponse getTournamentById(Long id) {
         Tournament tournament = tournamentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", id));
 
-        boolean isLanTournament = tournament.getLocation() != null;
-        return mapToTournamentResponse(tournament, isLanTournament);
+        return mapToTournamentResponse(tournament);
     }
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public TournamentResponse updateTournament(Long id, TournamentRequest request) {
+    public TournamentResponse updateTournament(Long id, TournamentRequest request, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", id));
 
@@ -136,23 +132,26 @@ public class TournamentService {
         }
 
         Location newLocation = null;
-        boolean isLanTournament = false;
         if (request.getPostalCode() != null && !request.getPostalCode().isEmpty() &&
-                request.getCity() != null && !request.getCity().isEmpty()) {
-            isLanTournament = true;
+                request.getCity() != null && !request.getCity().isEmpty() &&
+                request.getLatitude() != null && request.getLongitude() != null) {
             if (tournament.getLocation() != null) {
                 newLocation = tournament.getLocation();
                 newLocation.setPostalCode(request.getPostalCode());
                 newLocation.setCity(request.getCity());
                 newLocation.setStreet(request.getStreet());
-                newLocation.setNumber(request.getNumber());
+                newLocation.setBuildingNumber(request.getBuildingNumber());
+                newLocation.setLatitude(request.getLatitude());
+                newLocation.setLongitude(request.getLongitude());
                 locationRepository.save(newLocation);
             } else {
                 newLocation = new Location();
                 newLocation.setPostalCode(request.getPostalCode());
                 newLocation.setCity(request.getCity());
                 newLocation.setStreet(request.getStreet());
-                newLocation.setNumber(request.getNumber());
+                newLocation.setBuildingNumber(request.getBuildingNumber());
+                newLocation.setLatitude(request.getLatitude());
+                newLocation.setLongitude(request.getLongitude());
                 newLocation = locationRepository.save(newLocation);
             }
             tournament.setLocation(newLocation);
@@ -168,14 +167,13 @@ public class TournamentService {
             throw new BadRequestException("Max teams cannot be less than the current number of participating teams.");
         }
 
-
         tournament = tournamentRepository.save(tournament);
-        return mapToTournamentResponse(tournament, isLanTournament);
+        return mapToTournamentResponse(tournament);
     }
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public void deleteTournament(Long id) {
+    public void deleteTournament(Long id,  Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", id));
 
@@ -199,60 +197,63 @@ public class TournamentService {
         tournamentRepository.delete(tournament);
     }
 
-    public List<TournamentResponse> searchTournaments(String name, String location, LocalDate startDate, LocalDate endDate, String organizerNickname) {
-        List<Tournament> tournaments;
+    public List<TournamentResponse> searchTournaments(
+            String name, String location, LocalDate startDate, LocalDate endDate,
+            String organizerNickname, String gameName, Tournament.TournamentStatus status) {
 
-        if (name != null && !name.isEmpty()) {
-            tournaments = tournamentRepository.findByNameContainingIgnoreCase(name);
-        } else if (location != null && !location.isEmpty()) {
-            tournaments = tournamentRepository.findByLocationCityContainingIgnoreCase(location);
-        } else if (organizerNickname != null && !organizerNickname.isEmpty()) {
-            tournaments = tournamentRepository.findByOrganizerNicknameContainingIgnoreCase(organizerNickname);
-        } else if (startDate != null && endDate != null) {
-            tournaments = tournamentRepository.findByStartDateBetween(startDate, endDate);
-        } else {
-            tournaments = tournamentRepository.findAll();
-        }
+        Specification<Tournament> spec = TournamentSpecification.findByCriteria(
+                name, location, startDate, endDate, organizerNickname, gameName, status);
+
+        List<Tournament> tournaments = tournamentRepository.findAll(spec);
 
         return tournaments.stream()
-                .map(t -> mapToTournamentResponse(t, t.getLocation() != null))
+                .map(this::mapToTournamentResponse)
                 .collect(Collectors.toList());
     }
 
-    private TournamentResponse mapToTournamentResponse(Tournament tournament, boolean isLanTournament) {
+    public TournamentResponse mapToTournamentResponse(Tournament tournament) {
         TournamentResponse response = new TournamentResponse();
         response.setId(tournament.getId());
         response.setName(tournament.getName());
         response.setDescription(tournament.getDescription());
         response.setStartDate(tournament.getStartDate());
         response.setEndDate(tournament.getEndDate());
-
-        if (tournament.getGame() != null) {
-            response.setGameName(tournament.getGame().getName());
-        }
-        if (tournament.getOrganizer() != null) {
-            response.setOrganizerId(tournament.getOrganizer().getId());
-            response.setOrganizerNickname(tournament.getOrganizer().getNickname());
-        }
-
-        response.setLanTournament(isLanTournament);
-
-        if (tournament.getLocation() != null) {
-            response.setPostalCode(tournament.getLocation().getPostalCode());
-            response.setCity(tournament.getLocation().getCity());
-            response.setStreet(tournament.getLocation().getStreet());
-            response.setNumber(tournament.getLocation().getNumber());
-        }
-
+        response.setGameName(tournament.getGame().getName());
+        response.setGameId(tournament.getGame().getId());
+        response.setOrganizerId(tournament.getOrganizer().getId());
+        response.setOrganizerNickname(tournament.getOrganizer().getNickname());
         response.setMaxTeams(tournament.getMaxTeams());
-        response.setCurrentTeams(tournament.getParticipatingTeams().size());
         response.setStatus(tournament.getStatus());
+
+        response.setCurrentTeams(tournament.getParticipatingTeams().size());
+
+        boolean isLan = tournament.getLocation() != null;
+        response.setLanTournament(isLan);
+        if (isLan) {
+            Location location = tournament.getLocation();
+            response.setPostalCode(location.getPostalCode());
+            response.setCity(location.getCity());
+            response.setStreet(location.getStreet());
+            response.setBuildingNumber(location.getBuildingNumber());
+            response.setLatitude(location.getLatitude());
+            response.setLongitude(location.getLongitude());
+        }
+
+        response.setParticipatingTeams(
+                tournament.getParticipatingTeams().stream()
+                        .map(this::mapToTournamentTeamResponse)
+                        .collect(Collectors.toList())
+        );
 
         return response;
     }
 
-    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #organizerId)")
-    public List<TeamApplicationResponse> getTournamentApplications(Long tournamentId) {
+    private TournamentTeamResponse mapToTournamentTeamResponse(Team team) {
+        return new TournamentTeamResponse(team.getId(), team.getName());
+    }
+
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
+    public List<TeamApplicationResponse> getTournamentApplications(Long tournamentId, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
 
@@ -264,9 +265,15 @@ public class TournamentService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #organizerId)")
-    public TeamApplicationResponse updateApplicationStatus(Long tournamentId, Long applicationId, Boolean accepted) {
-        Tournament tournament = tournamentRepository.findById(tournamentId)
+    public Void updateApplicationStatus(Long tournamentId, Long applicationId, Boolean accepted, Long organizerId) {
+        Tournament tournament = tournamentRepository.findByIdWithParticipatingTeams(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+
+        User currentUser = userRepository.findById(organizerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "ID", organizerId));
+        if (!tournament.getOrganizer().getId().equals(organizerId) && !currentUser.getRole().equals(Roles.ROLE_ADMIN)) {
+            throw new UnauthorizedException("Only the tournament organizer or an Admin can update application status.");
+        }
 
         TeamApplication application = teamApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application", "ID", applicationId));
@@ -299,7 +306,6 @@ public class TournamentService {
                 team.setTournaments(new HashSet<>());
             }
             team.getTournaments().add(tournament);
-            teamRepository.save(team);
 
         } else {
             if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING &&
@@ -316,14 +322,13 @@ public class TournamentService {
                 Team team = application.getTeam();
                 if (team.getTournaments() != null) {
                     team.getTournaments().remove(tournament);
-                    teamRepository.save(team);
                 }
             }
             application.setStatus(TeamApplication.ApplicationStatus.REJECTED);
         }
 
         TeamApplication updatedApplication = teamApplicationRepository.save(application);
-        return mapToTeamApplicationResponse(updatedApplication);
+        return null;
     }
 
     private TeamApplicationResponse mapToTeamApplicationResponse(TeamApplication application) {
@@ -340,7 +345,7 @@ public class TournamentService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
-    public TournamentResponse changeTournamentStatus(Long tournamentId, TournamentStatus newStatus) {
+    public TournamentResponse changeTournamentStatus(Long tournamentId, TournamentStatus newStatus, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
 
@@ -362,13 +367,12 @@ public class TournamentService {
         tournament.setStatus(newStatus);
         Tournament updatedTournament = tournamentRepository.save(tournament);
 
-        boolean isLanTournament = updatedTournament.getLocation() != null;
-        return mapToTournamentResponse(updatedTournament, isLanTournament);
+        return mapToTournamentResponse(updatedTournament);
     }
 
     @Transactional
     @PreAuthorize("@tournamentService.isTeamApplicationLeader(#applicationId, #currentUserId)")
-    public TeamApplicationResponse withdrawTeamApplication(Long tournamentId, Long applicationId) {
+    public TeamApplicationResponse withdrawTeamApplication(Long tournamentId, Long applicationId, Long currentUserId) {
         TeamApplication application = teamApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application", "ID", applicationId));
 
@@ -388,7 +392,7 @@ public class TournamentService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
-    public TournamentResponse removeTeamFromTournament(Long tournamentId, Long teamId) {
+    public TournamentResponse removeTeamFromTournament(Long tournamentId, Long teamId, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
 
@@ -415,8 +419,33 @@ public class TournamentService {
                     teamApplicationRepository.save(app);
                 });
 
-        boolean isLanTournament = updatedTournament.getLocation() != null;
-        return mapToTournamentResponse(updatedTournament, isLanTournament);
+        return mapToTournamentResponse(updatedTournament);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
+    public Tournament startTournament(Long tournamentId, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
+
+        if (tournament.getStatus() != TournamentStatus.PENDING) {
+            throw new BadRequestException("Only PENDING tournaments can be started.");
+        }
+
+        List<Team> participatingTeams = new ArrayList<>(tournament.getParticipatingTeams());
+        if (participatingTeams.size() < 2) {
+            throw new BadRequestException("At least 2 teams are required to start the tournament.");
+        }
+
+        int numTeams = participatingTeams.size();
+        if ((numTeams & (numTeams - 1)) != 0) {
+            throw new BadRequestException("Number of participating teams must be a power of two to start the bracket (e.g., 2, 4, 8, 16...). Current teams: " + numTeams);
+        }
+
+        tournament.setStatus(TournamentStatus.ACTIVE);
+        tournamentRepository.save(tournament);
+
+        return tournament;
     }
 
     public boolean isOrganizer(Long tournamentId, Long userId) {

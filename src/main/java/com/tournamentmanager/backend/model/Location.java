@@ -1,13 +1,13 @@
 package com.tournamentmanager.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "location")
-@Data
+@Getter
+@Setter
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor
 @AllArgsConstructor
 public class Location {
@@ -25,6 +25,12 @@ public class Location {
     @Column(length = 50)
     private String street;
 
-    private Integer number;
+    private Integer buildingNumber;
+
+    @Column(nullable = true)
+    private Double latitude;
+
+    @Column(nullable = true)
+    private Double longitude;
 
 }

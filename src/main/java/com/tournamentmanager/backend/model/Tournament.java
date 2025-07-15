@@ -1,9 +1,8 @@
 package com.tournamentmanager.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -11,9 +10,11 @@ import java.util.Set;
 
 @Entity
 @Table(name = "tournament")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(of = "id")
 public class Tournament {
 
     @Id
@@ -55,6 +56,7 @@ public class Tournament {
             joinColumns = @JoinColumn(name = "tournament_id"),
             inverseJoinColumns = @JoinColumn(name = "team_id")
     )
+    @JsonManagedReference
     private Set<Team> participatingTeams = new HashSet<>();
 
     public enum TournamentStatus {

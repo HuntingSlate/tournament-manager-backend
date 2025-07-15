@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,4 +20,6 @@ public class TeamRequest {
 
     @NotNull(message = "Game ID cannot be null")
     private Long gameId;
+
+    private List<TeamLinkRequest> teamLinks;
 }

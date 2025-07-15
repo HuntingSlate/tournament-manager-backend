@@ -14,4 +14,6 @@ public interface TeamApplicationRepository extends JpaRepository<TeamApplication
     Optional<TeamApplication> findByTeamAndTournament(Team team, Tournament tournament);
 
     List<TeamApplication> findByTournament(Tournament tournament);
+
+    void deleteAllByTeam(Team team);
 }
