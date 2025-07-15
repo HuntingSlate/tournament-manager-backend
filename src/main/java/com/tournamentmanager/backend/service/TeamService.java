@@ -129,6 +129,20 @@ public class TeamService {
         Team team = teamRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", id));
 
+        boolean isInActiveTournament = team.getTournaments().stream()
+                .anyMatch(tournament -> tournament.getStatus() == Tournament.TournamentStatus.ACTIVE);
+
+        if (isInActiveTournament) {
+            throw new ConflictException("Cannot delete a team that is participating in an active tournament.");
+        }
+
+        for (Tournament tournament : new HashSet<>(team.getTournaments())) {
+            tournament.getParticipatingTeams().remove(team);
+        }
+        team.getTournaments().clear();
+
+        teamApplicationRepository.deleteAllByTeam(team);
+
         teamRepository.delete(team);
     }
 
@@ -402,6 +416,17 @@ public class TeamService {
                     .collect(Collectors.toList()));
         } else {
             response.setTeamLinks(List.of());
+        }
+
+        if (team.getTournaments() != null) {
+            response.setTournaments(team.getTournaments().stream()
+                    .map(tournament -> new TeamTournamentResponse(
+                            tournament.getId(),
+                            tournament.getName(),
+                            tournament.getStatus()))
+                    .collect(Collectors.toList()));
+        } else {
+            response.setTournaments(List.of());
         }
 
         return response;

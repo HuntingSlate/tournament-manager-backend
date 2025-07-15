@@ -19,4 +19,5 @@ public class TeamResponse {
     private String leaderNickname;
     private List<TeamMemberResponse> teamMembers;
     private List<TeamLinkResponse> teamLinks;
+    private List<TeamTournamentResponse> tournaments;
 }
