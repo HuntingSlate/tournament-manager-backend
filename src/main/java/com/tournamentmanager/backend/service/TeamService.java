@@ -161,12 +161,17 @@ public class TeamService {
             throw new ConflictException("User is already a member of this team.");
         }
 
+        if (playerTeamRepository.countByTeam(team) >= 5) {
+            throw new ConflictException("Max team size is 5");
+        }
 
         PlayerTeam playerTeam = new PlayerTeam();
         playerTeam.setTeam(team);
         playerTeam.setUser(newMember);
         playerTeam.setStartDate(LocalDate.now());
         playerTeamRepository.save(playerTeam);
+
+        team.getTeamMembers().add(playerTeam);
 
         return mapToTeamResponse(team);
     }
