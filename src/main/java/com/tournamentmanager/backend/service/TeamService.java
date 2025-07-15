@@ -200,6 +200,8 @@ public class TeamService {
 
         playerTeamRepository.delete(playerTeam);
 
+        team.getTeamMembers().remove(playerTeam);
+
         return mapToTeamResponse(team);
     }
 
