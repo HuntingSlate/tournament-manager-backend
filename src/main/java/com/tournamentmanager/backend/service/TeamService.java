@@ -180,6 +180,12 @@ public class TeamService {
 
         boolean isTeamLeader = team.getLeader().getId().equals(currentUserId);
         boolean isRemovingSelf = memberToRemove.getId().equals(currentUserId);
+        boolean isInActiveTournament = team.getTournaments().stream()
+                .anyMatch(tournament -> tournament.getStatus() == Tournament.TournamentStatus.ACTIVE);
+
+        if(isInActiveTournament){
+            throw new BadRequestException("User cant leave team which is in ACTIVE tournament");
+        }
 
         if (!isTeamLeader && !isRemovingSelf) {
             throw new UnauthorizedException("Only the team leader or the member themselves can remove a member from this team.");
