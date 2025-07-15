@@ -1,5 +1,6 @@
 package com.tournamentmanager.backend.service;
 
+import com.tournamentmanager.backend.Specification.TournamentSpecification;
 import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.exception.BadRequestException;
 import com.tournamentmanager.backend.exception.ConflictException;
@@ -7,7 +8,7 @@ import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.exception.UnauthorizedException;
 import com.tournamentmanager.backend.model.Game;
 import com.tournamentmanager.backend.model.Location;
-import com.tournamentmanager.backend.model.Match;
+import jakarta.persistence.criteria.Predicate;
 import com.tournamentmanager.backend.model.Tournament;
 import com.tournamentmanager.backend.model.Tournament.TournamentStatus;
 import com.tournamentmanager.backend.model.User;
@@ -21,6 +22,7 @@ import com.tournamentmanager.backend.repository.UserRepository;
 import com.tournamentmanager.backend.repository.TeamRepository;
 import com.tournamentmanager.backend.repository.TeamApplicationRepository;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -195,23 +197,17 @@ public class TournamentService {
         tournamentRepository.delete(tournament);
     }
 
-    public List<TournamentResponse> searchTournaments(String name, String location, LocalDate startDate, LocalDate endDate, String organizerNickname) {
-        List<Tournament> tournaments;
+    public List<TournamentResponse> searchTournaments(
+            String name, String location, LocalDate startDate, LocalDate endDate,
+            String organizerNickname, String gameName, Tournament.TournamentStatus status) {
 
-        if (name != null && !name.isEmpty()) {
-            tournaments = tournamentRepository.findByNameContainingIgnoreCase(name);
-        } else if (location != null && !location.isEmpty()) {
-            tournaments = tournamentRepository.findByLocationCityContainingIgnoreCase(location);
-        } else if (organizerNickname != null && !organizerNickname.isEmpty()) {
-            tournaments = tournamentRepository.findByOrganizerNicknameContainingIgnoreCase(organizerNickname);
-        } else if (startDate != null && endDate != null) {
-            tournaments = tournamentRepository.findByStartDateBetween(startDate, endDate);
-        } else {
-            tournaments = tournamentRepository.findAll();
-        }
+        Specification<Tournament> spec = TournamentSpecification.findByCriteria(
+                name, location, startDate, endDate, organizerNickname, gameName, status);
+
+        List<Tournament> tournaments = tournamentRepository.findAll(spec);
 
         return tournaments.stream()
-                .map(t -> mapToTournamentResponse(t))
+                .map(this::mapToTournamentResponse)
                 .collect(Collectors.toList());
     }
 

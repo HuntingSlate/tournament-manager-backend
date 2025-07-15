@@ -12,6 +12,7 @@ import com.tournamentmanager.backend.service.MatchService;
 import com.tournamentmanager.backend.service.TournamentService;
 import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -74,10 +75,13 @@ public class TournamentController {
     public ResponseEntity<List<TournamentResponse>> searchTournaments(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String location,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String organizerNickname) {
-        List<TournamentResponse> response = tournamentService.searchTournaments(name, location, startDate, endDate, organizerNickname);
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String organizerNickname,
+            @RequestParam(required = false) String gameName,
+            @RequestParam(required = false) Tournament.TournamentStatus status) {
+        List<TournamentResponse> response = tournamentService.searchTournaments(
+                name, location, startDate, endDate, organizerNickname, gameName, status);
         return ResponseEntity.ok(response);
     }
 
