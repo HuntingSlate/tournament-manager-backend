@@ -1,6 +1,7 @@
 package com.tournamentmanager.backend.controller;
 
 import com.tournamentmanager.backend.dto.*;
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.model.Team;
 import com.tournamentmanager.backend.model.User;
 import com.tournamentmanager.backend.service.TeamService;
@@ -36,6 +37,9 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserProfile(@PathVariable Long id) {
         User user = userService.getUserById(id);
+        if(user.getStatus() == User.AccountStatus.INACTIVE){
+           throw new ResourceNotFoundException("User", "ID", id);
+        }
         return ResponseEntity.ok(userService.mapToUserResponse(user));
     }
 

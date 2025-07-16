@@ -209,7 +209,9 @@ public class UserService {
         } else {
             users = userRepository.findAll();
         }
+
         return users.stream()
+                .filter(u -> u.getStatus() == User.AccountStatus.ACTIVE)
                 .map(this::mapToUserResponse)
                 .collect(Collectors.toList());
     }
