@@ -165,6 +165,10 @@ public class TeamService {
             throw new ConflictException("Max team size is 5");
         }
 
+        if (newMember.getStatus() == User.AccountStatus.INACTIVE) {
+            throw new BadRequestException("Cannot add an inactive user to a team.");
+        }
+
         PlayerTeam playerTeam = new PlayerTeam();
         playerTeam.setTeam(team);
         playerTeam.setUser(newMember);

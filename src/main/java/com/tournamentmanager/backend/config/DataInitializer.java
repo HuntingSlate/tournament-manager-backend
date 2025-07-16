@@ -211,6 +211,7 @@ public class DataInitializer implements CommandLineRunner {
         user.setPassword(passwordEncoder.encode(password));
         user.setRole(role);
         user.setFullName(faker.name().fullName());
+        user.setStatus(User.AccountStatus.ACTIVE);
         return userRepository.save(user);
     }
 
