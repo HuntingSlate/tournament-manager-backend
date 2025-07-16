@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
+import java.util.Optional;
 
 @Data
 @NoArgsConstructor
@@ -17,4 +18,5 @@ public class UserResponse {
     private String fullName;
     private List<PlayerLinkResponse> links;
     private Roles role;
+    private Optional<List<TeamResponse>> teams;
 }

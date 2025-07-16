@@ -21,11 +21,9 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
-    private final TeamService teamService;
 
-    public UserController(UserService userService, TeamService teamService) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.teamService = teamService;
     }
 
     @GetMapping("/me")
@@ -93,18 +91,6 @@ public class UserController {
     public ResponseEntity<List<UserResponse>> searchUsers(
             @RequestParam(required = false) String nickname) {
         List<UserResponse> response = userService.searchUsersByNickname(nickname);
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/me/teams")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<TeamResponse>> getMyTeams(@AuthenticationPrincipal UserDetails currentUser) {
-        Long userId = userService.getUserIdByEmail(currentUser.getUsername());
-        List<Team> teams = userService.getTeamsForUser(userId);
-
-        List<TeamResponse> response = teams.stream()
-                .map(teamService::mapToTeamResponse)
-                .collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
 }

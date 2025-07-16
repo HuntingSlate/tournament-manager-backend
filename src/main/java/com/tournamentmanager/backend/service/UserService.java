@@ -26,19 +26,22 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final PlayerTeamRepository playerTeamRepository;
     private final TeamRepository teamRepository;
+    private final TeamService teamService;
 
     public UserService(UserRepository userRepository,
                        LinkRepository linkRepository,
                        PlayerLinkRepository playerLinkRepository,
                        PasswordEncoder passwordEncoder,
                        PlayerTeamRepository playerTeamRepository,
-                       TeamRepository teamRepository) {
+                       TeamRepository teamRepository,
+                       TeamService teamService) {
         this.userRepository = userRepository;
         this.linkRepository = linkRepository;
         this.playerLinkRepository = playerLinkRepository;
         this.passwordEncoder = passwordEncoder;
         this.playerTeamRepository = playerTeamRepository;
         this.teamRepository = teamRepository;
+        this.teamService = teamService;
     }
 
     public Long getUserIdByEmail(String email) {
@@ -229,6 +232,18 @@ public class UserService {
         response.setFullName(user.getFullName());
         response.setLinks(getUserLinks(user.getId()));
         response.setRole(user.getRole());
+
+        List<Team> teams = getTeamsForUser(user.getId());
+
+        if (teams != null && !teams.isEmpty()) {
+            List<TeamResponse> teamResponses = teams.stream()
+                    .map(teamService::mapToTeamResponse)
+                    .collect(Collectors.toList());
+            response.setTeams(Optional.of(teamResponses));
+        } else {
+            response.setTeams(Optional.empty());
+        }
+
         return response;
     }
 }
