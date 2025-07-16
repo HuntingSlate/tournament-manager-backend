@@ -28,9 +28,9 @@ public class GameController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Game> getGameById(@PathVariable Long id) {
-        Game game = gameService.getGameById(id);
-        return ResponseEntity.ok(game);
+    public ResponseEntity<GameResponse> getGameById(@PathVariable Long id) {
+        GameResponse response = gameService.getGameDtoById(id);
+        return ResponseEntity.ok(response);
     }
 
     @PreAuthorize("hasRole('ADMIN')")

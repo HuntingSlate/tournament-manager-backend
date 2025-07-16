@@ -38,9 +38,14 @@ public class GameService {
         return gameRepository.save(game);
     }
 
-    public Game getGameById(Long id) {
+    public Game findGameById(Long id) {
         return gameRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Game not found with ID: " + id));
+    }
+
+    public GameResponse getGameDtoById(Long id) {
+        Game game = findGameById(id);
+        return mapToGameResponse(game);
     }
 
     @Transactional
