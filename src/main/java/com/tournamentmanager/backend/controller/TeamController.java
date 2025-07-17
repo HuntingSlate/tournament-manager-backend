@@ -1,9 +1,6 @@
 package com.tournamentmanager.backend.controller;
 
-import com.tournamentmanager.backend.dto.TeamLinkRequest;
-import com.tournamentmanager.backend.dto.TeamLinkResponse;
-import com.tournamentmanager.backend.dto.TeamRequest;
-import com.tournamentmanager.backend.dto.TeamResponse;
+import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.service.TeamService;
 import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -137,8 +134,20 @@ public class TeamController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{teamId}/applications")
+    public ResponseEntity<List<TeamApplicationResponse>> getTeamApplications(
+            @PathVariable Long teamId,
+            @AuthenticationPrincipal UserDetails currentUser) {
+
+        Long currentUserId = getUserIdFromUserDetails(currentUser);
+        List<TeamApplicationResponse> applications = teamService.getTeamApplications(teamId, currentUserId);
+        return ResponseEntity.ok(applications);
+    }
+
 
     private Long getUserIdFromUserDetails(UserDetails currentUser) {
         return userService.getUserIdByEmail(currentUser.getUsername());
     }
+
+
 }

@@ -449,6 +449,31 @@ public class TeamService {
         return response;
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, #currentUserId)")
+    public List<TeamApplicationResponse> getTeamApplications(Long teamId, Long currentUserId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", teamId));
+
+        List<TeamApplication> applications = teamApplicationRepository.findByTeam(team);
+
+        return applications.stream()
+                .map(this::mapToTeamApplicationResponse)
+                .collect(Collectors.toList());
+    }
+
+    private TeamApplicationResponse mapToTeamApplicationResponse(TeamApplication application) {
+        return new TeamApplicationResponse(
+                application.getId(),
+                application.getTeam().getId(),
+                application.getTeam().getName(),
+                application.getTournament().getId(),
+                application.getTournament().getName(),
+                application.getApplicationDate(),
+                application.getStatus()
+        );
+    }
+
     private TeamMemberResponse mapToTeamMemberResponse(PlayerTeam playerTeam) {
         return new TeamMemberResponse(
                 playerTeam.getUser().getId(),
