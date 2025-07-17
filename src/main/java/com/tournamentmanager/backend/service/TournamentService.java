@@ -257,7 +257,7 @@ public class TournamentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
 
 
-        return teamApplicationRepository.findByTournament(tournament).stream()
+        return teamApplicationRepository.findByTournamentAndStatus(tournament, TeamApplication.ApplicationStatus.PENDING).stream()
                 .map(this::mapToTeamApplicationResponse)
                 .collect(Collectors.toList());
     }
@@ -307,21 +307,8 @@ public class TournamentService {
             team.getTournaments().add(tournament);
 
         } else {
-            if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING &&
-                    application.getStatus() != TeamApplication.ApplicationStatus.ACCEPTED) {
-                throw new BadRequestException("Application cannot be rejected from its current status (must be PENDING or ACCEPTED).");
-            }
-
-            if (application.getStatus() == TeamApplication.ApplicationStatus.ACCEPTED) {
-                if (tournament.getParticipatingTeams() != null) {
-                    tournament.getParticipatingTeams().remove(application.getTeam());
-                }
-                tournamentRepository.save(tournament);
-
-                Team team = application.getTeam();
-                if (team.getTournaments() != null) {
-                    team.getTournaments().remove(tournament);
-                }
+            if (application.getStatus() != TeamApplication.ApplicationStatus.PENDING) {
+                throw new BadRequestException("Application cannot be rejected from its current status (must be PENDING).");
             }
             application.setStatus(TeamApplication.ApplicationStatus.REJECTED);
         }
@@ -390,7 +377,7 @@ public class TournamentService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId)")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId) or @tournamentService.isTeamApplicationLeader(#applicationId, #currentUserId)")
     public TournamentResponse removeTeamFromTournament(Long tournamentId, Long teamId, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
