@@ -45,7 +45,7 @@ public class StatisticsController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/ranking/game/{gameId}/kills")
+    @GetMapping("/ranking/game/{gameId}")
     public ResponseEntity<List<PlayerStatisticsResponse>> getRankingByKills(@PathVariable Long gameId) {
         List<PlayerStatisticsResponse> ranking = statisticsService.getPlayerRankingByKills(gameId);
         return ResponseEntity.ok(ranking);

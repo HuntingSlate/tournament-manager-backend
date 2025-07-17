@@ -77,11 +77,10 @@ public class TournamentController {
             @RequestParam(required = false) String location,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String organizerNickname,
             @RequestParam(required = false) String gameName,
             @RequestParam(required = false) Tournament.TournamentStatus status) {
         List<TournamentResponse> response = tournamentService.searchTournaments(
-                name, location, startDate, endDate, organizerNickname, gameName, status);
+                name, location, startDate, endDate, gameName, status);
         return ResponseEntity.ok(response);
     }
 

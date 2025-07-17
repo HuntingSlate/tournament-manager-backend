@@ -198,11 +198,10 @@ public class TournamentService {
     }
 
     public List<TournamentResponse> searchTournaments(
-            String name, String location, LocalDate startDate, LocalDate endDate,
-            String organizerNickname, String gameName, Tournament.TournamentStatus status) {
+            String name, String location, LocalDate startDate, LocalDate endDate, String gameName, Tournament.TournamentStatus status) {
 
         Specification<Tournament> spec = TournamentSpecification.findByCriteria(
-                name, location, startDate, endDate, organizerNickname, gameName, status);
+                name, location, startDate, endDate, gameName, status);
 
         List<Tournament> tournaments = tournamentRepository.findAll(spec);
 
