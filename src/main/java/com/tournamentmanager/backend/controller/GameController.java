@@ -22,8 +22,8 @@ public class GameController {
     }
 
     @GetMapping
-    public ResponseEntity<List<GameResponse>> getAllGames() {
-        List<GameResponse> games = gameService.getAllGames();
+    public ResponseEntity<List<GameResponse>> getAllGames(@RequestParam(required = false) String name) {
+        List<GameResponse> games = gameService.getAllGames(name);
         return ResponseEntity.ok(games);
     }
 

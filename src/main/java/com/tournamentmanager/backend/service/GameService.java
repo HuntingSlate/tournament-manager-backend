@@ -22,8 +22,16 @@ public class GameService {
         this.gameRepository = gameRepository;
     }
 
-    public List<GameResponse> getAllGames() {
-        return gameRepository.findAll().stream()
+    public List<GameResponse> getAllGames(String name) {
+        List<Game> games;
+
+        if (name != null && !name.isEmpty()) {
+            games = gameRepository.findByNameContainingIgnoreCase(name);
+        } else {
+            games = gameRepository.findAll();
+        }
+
+        return games.stream()
                 .map(this::mapToGameResponse)
                 .collect(Collectors.toList());
     }
@@ -62,6 +70,8 @@ public class GameService {
         existingGame.setName(gameRequest.getName());
         return gameRepository.save(existingGame);
     }
+
+
 
     @Transactional
     public void deleteGame(Long id) {
