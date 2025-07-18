@@ -155,15 +155,15 @@ public class DataInitializer implements CommandLineRunner {
         tournamentRepository.save(tournament);
         generateFirstRoundMatches(tournament);
 
-        int roundNumber = 1;
-        List<Match> matchesInRound = matchRepository.findByTournamentAndRoundNumber(tournament, roundNumber);
+        int bracketLevel = 1;
+        List<Match> matchesInRound = matchRepository.findByTournamentAndBracketLevel(tournament, bracketLevel);
 
         while (matchesInRound.size() >= 1) {
             List<Team> winners = new ArrayList<>();
-            log.info("-- Simulating Round {} with {} matches...", roundNumber, matchesInRound.size());
+            log.info("-- Simulating Round {} with {} matches...", bracketLevel, matchesInRound.size());
 
             for (Match match : matchesInRound) {
-                if (match.getTeam1() != null && match.getTeam2() != null) {
+                if (match.getFirstTeam() != null && match.getSecondTeam() != null) {
                     recordMatchResult(match, faker.number().numberBetween(1, 16), faker.number().numberBetween(1, 16));
                     winners.add(match.getWinningTeam());
                     saveRandomMatchStatisticsForMatch(match);
@@ -174,24 +174,23 @@ public class DataInitializer implements CommandLineRunner {
                 break;
             }
 
-            roundNumber++;
-            generateNextRoundMatches(tournament, winners, roundNumber);
-            matchesInRound = matchRepository.findByTournamentAndRoundNumber(tournament, roundNumber);
+            bracketLevel++;
+            generateNextRoundMatches(tournament, winners, bracketLevel);
+            matchesInRound = matchRepository.findByTournamentAndBracketLevel(tournament, bracketLevel);
         }
 
         tournament.setStatus(Tournament.TournamentStatus.COMPLETED);
         tournamentRepository.save(tournament);
         log.info("Simulation finished for tournament: {}", tournament.getName());
     }
-    private void generateNextRoundMatches(Tournament tournament, List<Team> winners, int roundNumber) {
-        LocalDateTime startTime = tournament.getStartDate().atStartOfDay().plusDays(roundNumber -1);
+    private void generateNextRoundMatches(Tournament tournament, List<Team> winners, int bracketLevel) {
+        LocalDateTime startTime = tournament.getStartDate().atStartOfDay().plusDays(bracketLevel -1);
         for (int i = 0; i < winners.size(); i += 2) {
             Match match = new Match();
             match.setTournament(tournament);
-            match.setTeam1(winners.get(i));
-            match.setTeam2(winners.get(i + 1));
-            match.setRoundNumber(roundNumber);
-            match.setMatchNumberInRound((i / 2) + 1);
+            match.setFirstTeam(winners.get(i));
+            match.setSecondTeam(winners.get(i + 1));
+            match.setBracketLevel(bracketLevel);
             match.setStatus(Match.MatchStatus.SCHEDULED);
             match.setStartDatetime(startTime);
             matchRepository.save(match);
@@ -200,8 +199,8 @@ public class DataInitializer implements CommandLineRunner {
 
     private void saveRandomMatchStatisticsForMatch(Match match) {
         List<User> players = new ArrayList<>();
-        if (match.getTeam1() != null) players.addAll(getPlayersFromTeam(match.getTeam1()));
-        if (match.getTeam2() != null) players.addAll(getPlayersFromTeam(match.getTeam2()));
+        if (match.getFirstTeam() != null) players.addAll(getPlayersFromTeam(match.getFirstTeam()));
+        if (match.getSecondTeam() != null) players.addAll(getPlayersFromTeam(match.getSecondTeam()));
 
         for (User player : players) {
             saveMatchStatistics(match, player,
@@ -222,10 +221,9 @@ public class DataInitializer implements CommandLineRunner {
         for (int i = 0; i < participatingTeams.size(); i += 2) {
             Match match = new Match();
             match.setTournament(tournament);
-            match.setTeam1(participatingTeams.get(i));
-            match.setTeam2(participatingTeams.get(i + 1));
-            match.setRoundNumber(1);
-            match.setMatchNumberInRound((i / 2) + 1);
+            match.setFirstTeam(participatingTeams.get(i));
+            match.setSecondTeam(participatingTeams.get(i + 1));
+            match.setBracketLevel(1);
             match.setStatus(Match.MatchStatus.SCHEDULED);
             match.setStartDatetime(startTime);
             matchRepository.save(match);
@@ -233,11 +231,11 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void recordMatchResult(Match match, int score1, int score2) {
-        match.setScoreTeam1(score1);
-        match.setScoreTeam2(score2);
+        match.setFirstTeamScore(score1);
+        match.setSecondTeamScore(score2);
         match.setEndDatetime(LocalDateTime.now());
         match.setStatus(Match.MatchStatus.COMPLETED);
-        match.setWinningTeam(score1 > score2 ? match.getTeam1() : match.getTeam2());
+        match.setWinningTeam(score1 > score2 ? match.getFirstTeam() : match.getSecondTeam());
         matchRepository.save(match);
     }
 
