@@ -71,12 +71,13 @@ public class DataInitializer implements CommandLineRunner {
         Game lol = createGame("League of Legends");
         Game valorant = createGame("Valorant");
         Game r6 = createGame("Rainbow Six: Siege");
+        Game game16teams = createGame("16druzyn");
 
         log.info("Creating a large pool of Users...");
         User admin = createUser("admin", "admin@example.com", "password", Roles.ROLE_ADMIN);
         createUser("test", "test@test.com", "test1234", Roles.ROLE_USER);
         List<User> users = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 200; i++) {
             users.add(createUser(faker.name().username(), faker.internet().emailAddress(), "password", Roles.ROLE_USER));
         }
 
@@ -84,6 +85,7 @@ public class DataInitializer implements CommandLineRunner {
         List<Team> cs2Teams = createTeamsForGame(cs2, users.subList(0, 40), 8);
         List<Team> lolTeams = createTeamsForGame(lol, users.subList(40, 80), 8);
         List<Team> valorantTeams = createTeamsForGame(valorant, users.subList(80, 100), 4);
+        List<Team> sixteenTeams = createTeamsForGame(game16teams, users.subList(100, 180), 16);
 
         log.info("Creating current Tournaments for interaction...");
         Location iemLocation = createLocation("40-001", "Katowice", "al. Korfantego", 35);
@@ -95,6 +97,10 @@ public class DataInitializer implements CommandLineRunner {
         activeValorant.setStatus(Tournament.TournamentStatus.ACTIVE);
         tournamentRepository.save(activeValorant);
         generateFirstRoundMatches(activeValorant);
+
+        Tournament tournament16teams = createTournament("Grand Arena 16", "Wielki turniej na 16 drużyn", game16teams, admin, null, 16, LocalDate.now().minusMonths(2));
+        applyAndAcceptTeams(tournament16teams, sixteenTeams);
+        simulateFullTournament(tournament16teams);
 
         log.info("Generating rich history of completed tournaments and statistics...");
         for (int i = 1; i <= 3; i++) {
