@@ -25,6 +25,7 @@ public class MatchResponse {
     private Long winningTeamId;
     private String winningTeamName;
     private Integer bracketLevel;
+    private Integer matchNumberInRound;
     private Integer firstTeamScore;
     private Integer secondTeamScore;
     private Match.MatchStatus status;

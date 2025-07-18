@@ -192,6 +192,7 @@ public class DataInitializer implements CommandLineRunner {
             match.setSecondTeam(winners.get(i + 1));
             match.setBracketLevel(bracketLevel);
             match.setStatus(Match.MatchStatus.SCHEDULED);
+            match.setMatchNumberInRound((i / 2) + 1);
             match.setStartDatetime(startTime);
             matchRepository.save(match);
         }
@@ -224,6 +225,7 @@ public class DataInitializer implements CommandLineRunner {
             match.setFirstTeam(participatingTeams.get(i));
             match.setSecondTeam(participatingTeams.get(i + 1));
             match.setBracketLevel(1);
+            match.setMatchNumberInRound((i / 2) + 1);
             match.setStatus(Match.MatchStatus.SCHEDULED);
             match.setStartDatetime(startTime);
             matchRepository.save(match);

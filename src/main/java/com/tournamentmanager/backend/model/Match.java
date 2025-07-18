@@ -24,6 +24,8 @@ public class Match {
 
     @Column(nullable = false)
     private Integer bracketLevel;
+    @Column(nullable = false)
+    private Integer matchNumberInRound;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_1_id")
     private Team firstTeam;

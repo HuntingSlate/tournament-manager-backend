@@ -70,6 +70,7 @@ public class MatchService {
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
         match.setBracketLevel(request.getBracketLevel());
+        match.setMatchNumberInRound(request.getMatchNumberInRound());
         match.setStatus(Match.MatchStatus.SCHEDULED);
 
         match = matchRepository.save(match);
@@ -109,6 +110,7 @@ public class MatchService {
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
         match.setBracketLevel(request.getBracketLevel());
+        match.setMatchNumberInRound(request.getMatchNumberInRound());
 
          if (request.getWinningTeamId() != null) {
              Team winningTeam = teamRepository.findById(request.getWinningTeamId())
@@ -247,6 +249,7 @@ public class MatchService {
 
             Match match = new Match();
             match.setTournament(tournament);
+            match.setMatchNumberInRound((i / 2) + 1);
             match.setFirstTeam(team1);
             match.setSecondTeam(team2);
             match.setBracketLevel(bracketLevel);
@@ -265,6 +268,7 @@ public class MatchService {
         response.setEndDatetime(match.getEndDatetime());
         response.setBracketLevel(match.getBracketLevel());
         response.setFirstTeamScore(match.getFirstTeamScore());
+        response.setMatchNumberInRound(match.getMatchNumberInRound());
         response.setSecondTeamScore(match.getSecondTeamScore());
         response.setStatus(match.getStatus());
 
