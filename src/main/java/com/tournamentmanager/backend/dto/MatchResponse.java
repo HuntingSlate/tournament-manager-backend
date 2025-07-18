@@ -20,8 +20,6 @@ public class MatchResponse {
     private String team1Name;
     private Long team2Id;
     private String team2Name;
-    private Long prevMatch1Id;
-    private Long prevMatch2Id;
     private LocalDateTime startDatetime;
     private LocalDateTime endDatetime;
     private Long winningTeamId;

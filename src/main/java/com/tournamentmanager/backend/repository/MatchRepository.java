@@ -17,8 +17,6 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     List<Match> findByTournament(Tournament tournament);
 
-    Optional<Match> findByPrevMatch1OrPrevMatch2(Match prevMatch1, Match prevMatch2);
-
     List<Match> findByTournamentAndRoundNumber(Tournament tournament, int roundNumber);
 
     @Query("SELECT DISTINCT m FROM Match m " +

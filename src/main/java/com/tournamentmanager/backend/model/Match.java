@@ -36,14 +36,6 @@ public class Match {
     @JoinColumn(name = "team_2_id")
     private Team team2;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "prev_match_1_id")
-    private Match prevMatch1;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "prev_match_2_id")
-    private Match prevMatch2;
-
     @Column(nullable = false)
     private LocalDateTime startDatetime;
 

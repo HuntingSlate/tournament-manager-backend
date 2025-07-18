@@ -73,17 +73,6 @@ public class MatchService {
         match.setMatchNumberInRound(request.getMatchNumberInRound());
         match.setStatus(Match.MatchStatus.SCHEDULED);
 
-        if (request.getPrevMatch1Id() != null) {
-            Match prevMatch1 = matchRepository.findById(request.getPrevMatch1Id())
-                    .orElseThrow(() -> new ResourceNotFoundException("Previous match", "ID", request.getPrevMatch1Id()));
-            match.setPrevMatch1(prevMatch1);
-        }
-        if (request.getPrevMatch2Id() != null) {
-            Match prevMatch2 = matchRepository.findById(request.getPrevMatch2Id())
-                    .orElseThrow(() -> new ResourceNotFoundException("Previous match", "ID", request.getPrevMatch2Id()));
-            match.setPrevMatch2(prevMatch2);
-        }
-
         match = matchRepository.save(match);
         return match;
     }
@@ -244,19 +233,6 @@ public class MatchService {
 
         Match savedMatch = matchRepository.save(match);
 
-        Optional<Match> nextMatchOptional = matchRepository.findByPrevMatch1OrPrevMatch2(savedMatch, savedMatch);
-
-        if (nextMatchOptional.isPresent()) {
-            Match nextMatch = nextMatchOptional.get();
-
-            if (nextMatch.getPrevMatch1() != null && nextMatch.getPrevMatch1().getId().equals(savedMatch.getId())) {
-                nextMatch.setTeam1(winnerTeam);
-            } else if (nextMatch.getPrevMatch2() != null && nextMatch.getPrevMatch2().getId().equals(savedMatch.getId())) {
-                nextMatch.setTeam2(winnerTeam);
-            }
-            matchRepository.save(nextMatch);
-        }
-
         return mapToMatchResponse(savedMatch);
     }
 
@@ -307,12 +283,6 @@ public class MatchService {
         if (match.getTeam2() != null) {
             response.setTeam2Id(match.getTeam2().getId());
             response.setTeam2Name(match.getTeam2().getName());
-        }
-        if (match.getPrevMatch1() != null) {
-            response.setPrevMatch1Id(match.getPrevMatch1().getId());
-        }
-        if (match.getPrevMatch2() != null) {
-            response.setPrevMatch2Id(match.getPrevMatch2().getId());
         }
         if (match.getWinningTeam() != null) {
             response.setWinningTeamId(match.getWinningTeam().getId());

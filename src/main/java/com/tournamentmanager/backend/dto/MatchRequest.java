@@ -19,9 +19,6 @@ public class MatchRequest {
     private Long team1Id;
     private Long team2Id;
 
-    private Long prevMatch1Id;
-    private Long prevMatch2Id;
-
     @NotNull(message = "Start datetime cannot be null")
     private LocalDateTime startDatetime;
 
