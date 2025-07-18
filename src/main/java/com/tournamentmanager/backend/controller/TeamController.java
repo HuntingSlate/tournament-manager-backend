@@ -1,6 +1,7 @@
 package com.tournamentmanager.backend.controller;
 
 import com.tournamentmanager.backend.dto.*;
+import com.tournamentmanager.backend.model.TeamApplication;
 import com.tournamentmanager.backend.service.TeamService;
 import com.tournamentmanager.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -137,10 +138,11 @@ public class TeamController {
     @GetMapping("/{teamId}/applications")
     public ResponseEntity<List<TeamApplicationResponse>> getTeamApplications(
             @PathVariable Long teamId,
+            @RequestParam(defaultValue = "PENDING") TeamApplication.ApplicationStatus status,
             @AuthenticationPrincipal UserDetails currentUser) {
 
         Long currentUserId = getUserIdFromUserDetails(currentUser);
-        List<TeamApplicationResponse> applications = teamService.getTeamApplications(teamId, currentUserId);
+        List<TeamApplicationResponse> applications = teamService.getTeamApplications(teamId, status, currentUserId);
         return ResponseEntity.ok(applications);
     }
 

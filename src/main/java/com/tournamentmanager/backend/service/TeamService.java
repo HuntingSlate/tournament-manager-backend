@@ -451,11 +451,11 @@ public class TeamService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, #currentUserId)")
-    public List<TeamApplicationResponse> getTeamApplications(Long teamId, Long currentUserId) {
+    public List<TeamApplicationResponse> getTeamApplications(Long teamId, TeamApplication.ApplicationStatus status,Long currentUserId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", teamId));
 
-        List<TeamApplication> applications = teamApplicationRepository.findByTeam(team);
+        List<TeamApplication> applications = teamApplicationRepository.findByTeamAndStatus(team, status);
 
         return applications.stream()
                 .map(this::mapToTeamApplicationResponse)
