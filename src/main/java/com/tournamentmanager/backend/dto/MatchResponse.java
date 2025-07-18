@@ -16,19 +16,19 @@ public class MatchResponse {
     private Long id;
     private Long tournamentId;
     private String tournamentName;
-    private Long team1Id;
-    private String team1Name;
-    private Long team2Id;
-    private String team2Name;
+    private Long firstTeamId;
+    private String firstTeamName;
+    private Long secondTeamId;
+    private String secondTeamName;
     private LocalDateTime startDatetime;
     private LocalDateTime endDatetime;
     private Long winningTeamId;
     private String winningTeamName;
-    private Integer roundNumber;
-    private Integer matchNumberInRound;
-    private Integer scoreTeam1;
-    private Integer scoreTeam2;
+    private Integer bracketLevel;
+    private Integer firstTeamScore;
+    private Integer secondTeamScore;
     private Match.MatchStatus status;
-    private List<MatchPlayerStatisticsResponse> matchStatistics;
+    private List<MatchPlayerStatisticsResponse> firstTeamMatchStatistics;
+    private List<MatchPlayerStatisticsResponse> secondTeamMatchStatistics;
 
 }

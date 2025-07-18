@@ -15,21 +15,15 @@ public class MatchRequest {
 
     @NotNull(message = "Tournament ID cannot be null")
     private Long tournamentId;
-
-    private Long team1Id;
-    private Long team2Id;
-
+    private Long firstTeamId;
+    private Long secondTeamId;
     @NotNull(message = "Start datetime cannot be null")
     private LocalDateTime startDatetime;
-
     private LocalDateTime endDatetime;
     private Long winningTeamId;
-
-    private Integer roundNumber;
-    private Integer matchNumberInRound;
-
-    private Integer scoreTeam1;
-    private Integer scoreTeam2;
+    private Integer bracketLevel;
+    private Integer firstTeamScore;
+    private Integer secondTeamScore;
     private Match.MatchStatus status;
 
 }

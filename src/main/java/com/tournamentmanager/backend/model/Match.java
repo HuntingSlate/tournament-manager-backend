@@ -23,18 +23,14 @@ public class Match {
     private Tournament tournament;
 
     @Column(nullable = false)
-    private Integer roundNumber;
-
-    @Column(nullable = false)
-    private Integer matchNumberInRound;
-
+    private Integer bracketLevel;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_1_id")
-    private Team team1;
+    private Team firstTeam;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_2_id")
-    private Team team2;
+    private Team secondTeam;
 
     @Column(nullable = false)
     private LocalDateTime startDatetime;
@@ -42,10 +38,10 @@ public class Match {
     private LocalDateTime endDatetime;
 
     @Column
-    private Integer scoreTeam1;
+    private Integer firstTeamScore;
 
     @Column
-    private Integer scoreTeam2;
+    private Integer secondTeamScore;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "winning_team_id")
