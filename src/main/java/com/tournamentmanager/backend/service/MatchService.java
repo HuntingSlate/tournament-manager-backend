@@ -327,31 +327,42 @@ public class MatchService {
         }
 
         List<MatchStatistics> allMatchStats = matchStatisticsRepository.findByMatch(match);
+        Map<Long, MatchStatistics> statsByPlayerId = allMatchStats.stream()
+                .collect(Collectors.toMap(stat -> stat.getPlayer().getId(), stat -> stat));
 
         List<MatchPlayerStatisticsResponse> firstTeamStats = new ArrayList<>();
         List<MatchPlayerStatisticsResponse> secondTeamStats = new ArrayList<>();
 
-        Set<Long> firstTeamPlayerIds = new HashSet<>();
         if (match.getFirstTeam() != null && match.getFirstTeam().getTeamMembers() != null) {
-            firstTeamPlayerIds = match.getFirstTeam().getTeamMembers().stream()
-                    .map(playerTeam -> playerTeam.getUser().getId())
-                    .collect(Collectors.toSet());
-        }
-        if (allMatchStats != null) {
-            for (MatchStatistics stat : allMatchStats) {
-                MatchPlayerStatisticsResponse statDto = new MatchPlayerStatisticsResponse(
-                        stat.getId(),
-                        stat.getPlayer().getId(),
-                        stat.getPlayer().getNickname(),
-                        stat.getKills(),
-                        stat.getDeaths(),
-                        stat.getAssists()
-                );
+            for (PlayerTeam playerTeam : match.getFirstTeam().getTeamMembers()) {
+                User player = playerTeam.getUser();
+                MatchStatistics stats = statsByPlayerId.get(player.getId());
 
-                if (firstTeamPlayerIds.contains(stat.getPlayer().getId())) {
-                    firstTeamStats.add(statDto);
+                if (stats != null) {
+                    firstTeamStats.add(new MatchPlayerStatisticsResponse(
+                            stats.getId(), player.getId(), player.getNickname(),
+                            stats.getKills(), stats.getDeaths(), stats.getAssists()));
                 } else {
-                    secondTeamStats.add(statDto);
+                    firstTeamStats.add(new MatchPlayerStatisticsResponse(
+                            null, player.getId(), player.getNickname(),
+                            null, null, null));
+                }
+            }
+        }
+
+        if (match.getSecondTeam() != null && match.getSecondTeam().getTeamMembers() != null) {
+            for (PlayerTeam playerTeam : match.getSecondTeam().getTeamMembers()) {
+                User player = playerTeam.getUser();
+                MatchStatistics stats = statsByPlayerId.get(player.getId());
+
+                if (stats != null) {
+                    secondTeamStats.add(new MatchPlayerStatisticsResponse(
+                            stats.getId(), player.getId(), player.getNickname(),
+                            stats.getKills(), stats.getDeaths(), stats.getAssists()));
+                } else {
+                    secondTeamStats.add(new MatchPlayerStatisticsResponse(
+                            null, player.getId(), player.getNickname(),
+                            null, null, null));
                 }
             }
         }
