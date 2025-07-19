@@ -1,9 +1,6 @@
 package com.tournamentmanager.backend.controller;
 
-import com.tournamentmanager.backend.dto.MatchRequest;
-import com.tournamentmanager.backend.dto.MatchResponse;
-import com.tournamentmanager.backend.dto.MatchStatisticsRequest;
-import com.tournamentmanager.backend.dto.MatchUpdateRequest;
+import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.model.Match;
 import com.tournamentmanager.backend.security.CustomUserDetails;
 import com.tournamentmanager.backend.service.MatchService;
@@ -76,13 +73,15 @@ public class MatchController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/matches/{id}/statistics")
-    public ResponseEntity<MatchResponse> saveMatchStatistics(@PathVariable Long id,
-                                                             @Valid @RequestBody List<MatchStatisticsRequest> statisticsRequests,
-                                                             @AuthenticationPrincipal UserDetails currentUser) {
+    @PutMapping("/matches/{matchId}/statistics/{statisticId}")
+    public ResponseEntity<MatchPlayerStatisticsResponse> updateMatchStatistic(
+            @PathVariable Long matchId,
+            @PathVariable Long statisticId,
+            @Valid @RequestBody MatchStatisticsRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
 
         Long currentUserId = getUserIdFromUserDetails(currentUser);
-        MatchResponse response = matchService.saveMatchStatistics(id, statisticsRequests, currentUserId);
+        MatchPlayerStatisticsResponse response = matchService.updateMatchStatistic(matchId, statisticId, request, currentUserId);
         return ResponseEntity.ok(response);
     }
 

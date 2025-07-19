@@ -200,8 +200,51 @@ public class DataInitializer implements CommandLineRunner {
             match.setStatus(Match.MatchStatus.SCHEDULED);
             match.setMatchNumberInRound((i / 2) + 1);
             match.setStartDatetime(startTime);
-            matchRepository.save(match);
+            Match savedMatch = matchRepository.save(match);
+
+            createInitialStatisticsForMatch(savedMatch);
         }
+    }
+
+    private void createInitialStatisticsForMatch(Match match) {
+        List<User> players = new ArrayList<>();
+        if (match.getFirstTeam() != null) {
+            players.addAll(getPlayersFromTeam(match.getFirstTeam()));
+        }
+        if (match.getSecondTeam() != null) {
+            players.addAll(getPlayersFromTeam(match.getSecondTeam()));
+        }
+
+        for (User player : players) {
+            if (matchStatisticsRepository.findByMatchAndPlayer(match, player).isEmpty()) {
+                MatchStatistics stats = new MatchStatistics();
+                stats.setMatch(match);
+                stats.setPlayer(player);
+                stats.setKills(0);
+                stats.setDeaths(0);
+                stats.setAssists(0);
+                matchStatisticsRepository.save(stats);
+
+                updatePlayerMatchesPlayed(player, match.getTournament().getGame());
+            }
+        }
+    }
+
+    private void updatePlayerMatchesPlayed(User player, Game game) {
+        PlayerStatistics playerStats = playerStatisticsRepository.findByPlayerAndGame(player, game)
+                .orElseGet(() -> {
+                    PlayerStatistics newStats = new PlayerStatistics();
+                    newStats.setPlayer(player);
+                    newStats.setGame(game);
+                    newStats.setKills(0);
+                    newStats.setDeaths(0);
+                    newStats.setAssists(0);
+                    newStats.setMatchesPlayed(0);
+                    return newStats;
+                });
+
+        playerStats.setMatchesPlayed(playerStats.getMatchesPlayed() + 1);
+        playerStatisticsRepository.save(playerStats);
     }
 
     private void saveRandomMatchStatisticsForMatch(Match match) {
@@ -234,7 +277,9 @@ public class DataInitializer implements CommandLineRunner {
             match.setMatchNumberInRound((i / 2) + 1);
             match.setStatus(Match.MatchStatus.SCHEDULED);
             match.setStartDatetime(startTime);
-            matchRepository.save(match);
+            Match savedMatch = matchRepository.save(match);
+
+            createInitialStatisticsForMatch(savedMatch);
         }
     }
 
