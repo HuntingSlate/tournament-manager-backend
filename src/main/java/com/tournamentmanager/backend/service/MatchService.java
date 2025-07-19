@@ -183,6 +183,19 @@ public class MatchService {
     }
 
     private void synchronizeNextMatchFor(Match processedMatch) {
+        Tournament tournament = processedMatch.getTournament();
+        int numTeams = tournament.getParticipatingTeams().size();
+        if (numTeams < 2) {
+            return;
+        }
+
+        int totalRounds = (int) (Math.log(numTeams) / Math.log(2));
+
+        //last match of tournament
+        if (processedMatch.getBracketLevel() >= totalRounds) {
+            return;
+        }
+
         int partnerMatchNumber = (processedMatch.getMatchNumberInRound() % 2 == 1)
                 ? processedMatch.getMatchNumberInRound() + 1
                 : processedMatch.getMatchNumberInRound() - 1;
