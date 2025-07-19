@@ -84,7 +84,7 @@ public class DataInitializer implements CommandLineRunner {
         log.info("Creating Teams...");
         List<Team> cs2Teams = createTeamsForGame(cs2, users.subList(0, 40), 8);
         List<Team> lolTeams = createTeamsForGame(lol, users.subList(40, 80), 8);
-        List<Team> valorantTeams = createTeamsForGame(valorant, users.subList(80, 100), 4);
+        List<Team> valorantTeams = createTeamsForGame(valorant, users.subList(80, 120), 8);
         List<Team> sixteenTeams = createTeamsForGame(game16teams, users.subList(100, 180), 16);
 
         log.info("Creating current Tournaments for interaction...");
@@ -293,7 +293,8 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void saveMatchStatistics(Match match, User player, int kills, int deaths, int assists) {
-        MatchStatistics stats = new MatchStatistics();
+        MatchStatistics stats = matchStatisticsRepository.findByMatchAndPlayer(match, player)
+                .orElse(new MatchStatistics());
         stats.setMatch(match);
         stats.setPlayer(player);
         stats.setKills(kills);
