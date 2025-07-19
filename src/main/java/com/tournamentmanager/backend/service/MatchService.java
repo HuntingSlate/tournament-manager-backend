@@ -108,8 +108,6 @@ public class MatchService {
 
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
-        match.setBracketLevel(request.getBracketLevel());
-        match.setMatchNumberInRound(request.getMatchNumberInRound());
         match.setFirstTeamScore(request.getFirstTeamScore());
         match.setSecondTeamScore(request.getSecondTeamScore());
         match.setStatus(request.getStatus());

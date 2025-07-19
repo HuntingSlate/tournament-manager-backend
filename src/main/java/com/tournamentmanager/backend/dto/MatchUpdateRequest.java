@@ -16,8 +16,6 @@ public class MatchUpdateRequest {
     private LocalDateTime startDatetime;
     private LocalDateTime endDatetime;
     private Long winningTeamId;
-    private Integer bracketLevel;
-    private Integer matchNumberInRound;
     private Integer firstTeamScore;
     private Integer secondTeamScore;
     private Match.MatchStatus status;
