@@ -77,7 +77,7 @@ public class DataInitializer implements CommandLineRunner {
         User admin = createUser("admin", "admin@example.com", "password", Roles.ROLE_ADMIN);
         createUser("test", "test@test.com", "test1234", Roles.ROLE_USER);
         List<User> users = new ArrayList<>();
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < 210; i++) {
             users.add(createUser(faker.name().username(), faker.internet().emailAddress(), "password", Roles.ROLE_USER));
         }
 
@@ -85,14 +85,14 @@ public class DataInitializer implements CommandLineRunner {
         List<Team> cs2Teams = createTeamsForGame(cs2, users.subList(0, 40), 8);
         List<Team> lolTeams = createTeamsForGame(lol, users.subList(40, 80), 8);
         List<Team> valorantTeams = createTeamsForGame(valorant, users.subList(80, 120), 8);
-        List<Team> sixteenTeams = createTeamsForGame(game16teams, users.subList(100, 180), 16);
+        List<Team> sixteenTeams = createTeamsForGame(game16teams, users.subList(120, 200), 16);
 
         log.info("Creating current Tournaments for interaction...");
         Location iemLocation = createLocation("40-001", "Katowice", "al. Korfantego", 35);
         Tournament iem = createTournament("IEM Katowice 2026", "Nadchodzący Major CS2 w Katowicach", cs2, admin, iemLocation, 16, LocalDate.now().plusMonths(6));
         applyAndAcceptTeams(iem, cs2Teams.subList(0, 4));
 
-        Tournament activeValorant = createTournament("Online Valorant Clash", "Aktywny turniej online", valorant, users.get(1), null, 4, LocalDate.now().minusDays(1));
+        Tournament activeValorant = createTournament("Online Valorant Clash", "Aktywny turniej online", valorant, users.get(1), null, 8, LocalDate.now().minusDays(1));
         applyAndAcceptTeams(activeValorant, valorantTeams);
         activeValorant.setStatus(Tournament.TournamentStatus.ACTIVE);
         tournamentRepository.save(activeValorant);
@@ -295,6 +295,7 @@ public class DataInitializer implements CommandLineRunner {
     private void saveMatchStatistics(Match match, User player, int kills, int deaths, int assists) {
         MatchStatistics stats = matchStatisticsRepository.findByMatchAndPlayer(match, player)
                 .orElse(new MatchStatistics());
+
         stats.setMatch(match);
         stats.setPlayer(player);
         stats.setKills(kills);
@@ -317,7 +318,6 @@ public class DataInitializer implements CommandLineRunner {
         playerStats.setKills(playerStats.getKills() + kills);
         playerStats.setDeaths(playerStats.getDeaths() + deaths);
         playerStats.setAssists(playerStats.getAssists() + assists);
-        playerStats.setMatchesPlayed(playerStats.getMatchesPlayed() + 1);
         playerStatisticsRepository.save(playerStats);
     }
 

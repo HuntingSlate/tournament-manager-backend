@@ -127,42 +127,10 @@ public class MatchService {
         }
 
         match = matchRepository.save(match);
-        final Match completedMatch = match;
 
-        boolean winnerHasBeenSet = (oldWinner == null && newWinner != null);
-
-        if (winnerHasBeenSet) {
-            int partnerMatchNumber;
-            if (match.getMatchNumberInRound() % 2 == 1) {
-                partnerMatchNumber = match.getMatchNumberInRound() + 1;
-            } else {
-                partnerMatchNumber = match.getMatchNumberInRound() - 1;
-            }
-
-            Optional<Match> partnerMatchOpt = matchRepository.findByTournamentAndBracketLevelAndMatchNumberInRound(
-                    match.getTournament(), match.getBracketLevel(), partnerMatchNumber);
-
-            if (partnerMatchOpt.isPresent() && partnerMatchOpt.get().getWinningTeam() != null) {
-                Match partnerMatch = partnerMatchOpt.get();
-                Team winner1 = match.getWinningTeam();
-                Team winner2 = partnerMatch.getWinningTeam();
-
-                Team nextMatchFirstTeam = (match.getMatchNumberInRound() < partnerMatch.getMatchNumberInRound()) ? winner1 : winner2;
-                Team nextMatchSecondTeam = (match.getMatchNumberInRound() < partnerMatch.getMatchNumberInRound()) ? winner2 : winner1;
-
-                Match nextMatch = new Match();
-                nextMatch.setTournament(match.getTournament());
-                nextMatch.setBracketLevel(match.getBracketLevel() + 1);
-                nextMatch.setMatchNumberInRound((match.getMatchNumberInRound() + 1) / 2);
-                nextMatch.setFirstTeam(nextMatchFirstTeam);
-                nextMatch.setSecondTeam(nextMatchSecondTeam);
-                nextMatch.setStatus(Match.MatchStatus.SCHEDULED);
-                nextMatch.setStartDatetime(match.getEndDatetime() != null ? match.getEndDatetime().plusDays(1) : LocalDateTime.now().plusDays(1));
-
-                Match savedNextMatch = matchRepository.save(nextMatch);
-
-                createInitialStatisticsForMatch(savedNextMatch);
-            }
+        boolean winnerHasChanged = !Objects.equals(oldWinner, newWinner);
+        if (winnerHasChanged) {
+            synchronizeNextMatchFor(match);
         }
 
         return mapToMatchResponse(match);
@@ -212,6 +180,43 @@ public class MatchService {
                 updatedStats.getId(), updatedStats.getPlayer().getId(), updatedStats.getPlayer().getNickname(),
                 updatedStats.getKills(), updatedStats.getDeaths(), updatedStats.getAssists()
         );
+    }
+
+    private void synchronizeNextMatchFor(Match processedMatch) {
+        int partnerMatchNumber = (processedMatch.getMatchNumberInRound() % 2 == 1)
+                ? processedMatch.getMatchNumberInRound() + 1
+                : processedMatch.getMatchNumberInRound() - 1;
+
+        Match partnerMatch = matchRepository.findByTournamentAndBracketLevelAndMatchNumberInRound(
+                processedMatch.getTournament(), processedMatch.getBracketLevel(), partnerMatchNumber).orElse(null);
+
+        Team winnerOfProcessedMatch = processedMatch.getWinningTeam();
+        Team winnerOfPartnerMatch = (partnerMatch != null) ? partnerMatch.getWinningTeam() : null;
+
+        Team nextMatchFirstTeam = (processedMatch.getMatchNumberInRound() < partnerMatchNumber) ? winnerOfProcessedMatch : winnerOfPartnerMatch;
+        Team nextMatchSecondTeam = (processedMatch.getMatchNumberInRound() < partnerMatchNumber) ? winnerOfPartnerMatch : winnerOfProcessedMatch;
+
+        int nextBracketLevel = processedMatch.getBracketLevel() + 1;
+        int nextMatchNumberInRound = (processedMatch.getMatchNumberInRound() + 1) / 2;
+
+        Match nextMatch = matchRepository.findByTournamentAndBracketLevelAndMatchNumberInRound(
+                        processedMatch.getTournament(), nextBracketLevel, nextMatchNumberInRound)
+                .orElse(new Match());
+
+        if (nextMatch.getId() == null) {
+            nextMatch.setTournament(processedMatch.getTournament());
+            nextMatch.setBracketLevel(nextBracketLevel);
+            nextMatch.setMatchNumberInRound(nextMatchNumberInRound);
+            nextMatch.setStatus(Match.MatchStatus.SCHEDULED);
+            nextMatch.setStartDatetime(processedMatch.getEndDatetime() != null ? processedMatch.getEndDatetime().plusDays(1) : LocalDateTime.now().plusDays(1));
+        }
+
+        nextMatch.setFirstTeam(nextMatchFirstTeam);
+        nextMatch.setSecondTeam(nextMatchSecondTeam);
+
+        Match savedNextMatch = matchRepository.save(nextMatch);
+
+        createInitialStatisticsForMatch(savedNextMatch);
     }
 
     @Transactional
@@ -361,7 +366,11 @@ public class MatchService {
 
         List<MatchStatistics> allMatchStats = matchStatisticsRepository.findByMatch(match);
         Map<Long, MatchStatistics> statsByPlayerId = allMatchStats.stream()
-                .collect(Collectors.toMap(stat -> stat.getPlayer().getId(), stat -> stat));
+                .collect(Collectors.toMap(
+                        stat -> stat.getPlayer().getId(),
+                        stat -> stat,
+                        (existingValue, newValue) -> existingValue
+                ));
 
         List<MatchPlayerStatisticsResponse> firstTeamStats = new ArrayList<>();
         List<MatchPlayerStatisticsResponse> secondTeamStats = new ArrayList<>();
