@@ -3,6 +3,7 @@ package com.tournamentmanager.backend.controller;
 import com.tournamentmanager.backend.dto.MatchRequest;
 import com.tournamentmanager.backend.dto.MatchResponse;
 import com.tournamentmanager.backend.dto.MatchStatisticsRequest;
+import com.tournamentmanager.backend.dto.MatchUpdateRequest;
 import com.tournamentmanager.backend.model.Match;
 import com.tournamentmanager.backend.security.CustomUserDetails;
 import com.tournamentmanager.backend.service.MatchService;
@@ -56,7 +57,7 @@ public class MatchController {
     }
 
     @PutMapping("/matches/{id}")
-    public ResponseEntity<MatchResponse> updateMatch(@PathVariable Long id, @Valid @RequestBody MatchRequest request,
+    public ResponseEntity<MatchResponse> updateMatch(@PathVariable Long id, @Valid @RequestBody MatchUpdateRequest request,
                                                      @AuthenticationPrincipal UserDetails currentUser) {
 
         Long currentUserId = getUserIdFromUserDetails(currentUser);

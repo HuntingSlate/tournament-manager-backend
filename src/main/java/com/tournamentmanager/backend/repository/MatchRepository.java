@@ -19,6 +19,9 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     List<Match> findByTournamentAndBracketLevel(Tournament tournament, int bracketLevel);
 
+    Optional<Match> findByTournamentAndBracketLevelAndMatchNumberInRound(
+            Tournament tournament, int bracketLevel, int matchNumberInRound);
+
     @Query("SELECT DISTINCT m FROM Match m " +
             "LEFT JOIN m.tournament t " +
             "LEFT JOIN t.game g " +

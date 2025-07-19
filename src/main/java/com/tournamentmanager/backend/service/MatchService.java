@@ -1,9 +1,6 @@
 package com.tournamentmanager.backend.service;
 
-import com.tournamentmanager.backend.dto.MatchRequest;
-import com.tournamentmanager.backend.dto.MatchResponse;
-import com.tournamentmanager.backend.dto.MatchStatisticsRequest;
-import com.tournamentmanager.backend.dto.MatchPlayerStatisticsResponse;
+import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.exception.BadRequestException;
 import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.exception.UnauthorizedException;
@@ -103,27 +100,69 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public MatchResponse updateMatch(Long id, MatchRequest request, Long currentUserId) {
+    public MatchResponse updateMatch(Long id, MatchUpdateRequest request, Long currentUserId) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
+
+        Team oldWinner = match.getWinningTeam();
 
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
         match.setBracketLevel(request.getBracketLevel());
         match.setMatchNumberInRound(request.getMatchNumberInRound());
+        match.setFirstTeamScore(request.getFirstTeamScore());
+        match.setSecondTeamScore(request.getSecondTeamScore());
+        match.setStatus(request.getStatus());
 
-         if (request.getWinningTeamId() != null) {
-             Team winningTeam = teamRepository.findById(request.getWinningTeamId())
-                     .orElseThrow(() -> new ResourceNotFoundException("Winning team", "ID", request.getWinningTeamId()));
-             if (!winningTeam.equals(match.getFirstTeam()) && !winningTeam.equals(match.getSecondTeam())) {
-                 throw new BadRequestException("Winning team must be one of the participating teams in the match.");
-             }
-             match.setWinningTeam(winningTeam);
-         } else {
-             match.setWinningTeam(null);
-         }
+        Team newWinner = null;
+        if (request.getWinningTeamId() != null) {
+            newWinner = teamRepository.findById(request.getWinningTeamId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Winning team", "ID", request.getWinningTeamId()));
+            if (!newWinner.equals(match.getFirstTeam()) && !newWinner.equals(match.getSecondTeam())) {
+                throw new BadRequestException("Winning team must be one of the participating teams in the match.");
+            }
+            match.setWinningTeam(newWinner);
+        } else {
+            match.setWinningTeam(null);
+        }
 
         match = matchRepository.save(match);
+        final Match completedMatch = match;
+
+        boolean winnerHasBeenSet = (oldWinner == null && newWinner != null);
+
+        if (winnerHasBeenSet) {
+            int partnerMatchNumber;
+            if (match.getMatchNumberInRound() % 2 == 1) {
+                partnerMatchNumber = match.getMatchNumberInRound() + 1;
+            } else {
+                partnerMatchNumber = match.getMatchNumberInRound() - 1;
+            }
+
+            Optional<Match> partnerMatchOpt = matchRepository.findByTournamentAndBracketLevelAndMatchNumberInRound(
+                    match.getTournament(), match.getBracketLevel(), partnerMatchNumber);
+
+            if (partnerMatchOpt.isPresent() && partnerMatchOpt.get().getWinningTeam() != null) {
+                Match partnerMatch = partnerMatchOpt.get();
+                Team winner1 = match.getWinningTeam();
+                Team winner2 = partnerMatch.getWinningTeam();
+
+                Team nextMatchFirstTeam = (match.getMatchNumberInRound() < partnerMatch.getMatchNumberInRound()) ? winner1 : winner2;
+                Team nextMatchSecondTeam = (match.getMatchNumberInRound() < partnerMatch.getMatchNumberInRound()) ? winner2 : winner1;
+
+                Match nextMatch = new Match();
+                nextMatch.setTournament(match.getTournament());
+                nextMatch.setBracketLevel(match.getBracketLevel() + 1);
+                nextMatch.setMatchNumberInRound((match.getMatchNumberInRound() + 1) / 2);
+                nextMatch.setFirstTeam(nextMatchFirstTeam);
+                nextMatch.setSecondTeam(nextMatchSecondTeam);
+                nextMatch.setStatus(Match.MatchStatus.SCHEDULED);
+                nextMatch.setStartDatetime(match.getEndDatetime() != null ? match.getEndDatetime().plusDays(1) : LocalDateTime.now().plusDays(1));
+
+                matchRepository.save(nextMatch);
+            }
+        }
+
         return mapToMatchResponse(match);
     }
 
