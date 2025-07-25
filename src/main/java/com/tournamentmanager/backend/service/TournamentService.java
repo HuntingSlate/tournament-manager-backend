@@ -377,7 +377,7 @@ public class TournamentService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId) or @tournamentService.isTeamApplicationLeader(#applicationId, #currentUserId)")
+    @PreAuthorize("hasRole('ADMIN') or @tournamentService.isOrganizer(#tournamentId, #currentUserId) or @teamService.isTeamLeader(#teamId, #currentUserId)")
     public TournamentResponse removeTeamFromTournament(Long tournamentId, Long teamId, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", tournamentId));
