@@ -1,9 +1,6 @@
 package com.tournamentmanager.backend.service;
 
-import com.tournamentmanager.backend.dto.MatchRequest;
-import com.tournamentmanager.backend.dto.MatchResponse;
-import com.tournamentmanager.backend.dto.MatchStatisticsRequest;
-import com.tournamentmanager.backend.dto.MatchPlayerStatisticsResponse;
+import com.tournamentmanager.backend.dto.*;
 import com.tournamentmanager.backend.exception.BadRequestException;
 import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.exception.UnauthorizedException;
@@ -50,10 +47,10 @@ public class MatchService {
         Tournament tournament = tournamentRepository.findById(request.getTournamentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", "ID", request.getTournamentId()));
 
-        Team team1 = teamRepository.findById(request.getTeam1Id())
-                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", request.getTeam1Id()));
-        Team team2 = teamRepository.findById(request.getTeam2Id())
-                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", request.getTeam2Id()));
+        Team team1 = teamRepository.findById(request.getFirstTeamId())
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", request.getFirstTeamId()));
+        Team team2 = teamRepository.findById(request.getSecondTeamId())
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", request.getSecondTeamId()));
 
         if (team1.getId().equals(team2.getId())) {
             throw new BadRequestException("Teams cannot be the same in a match.");
@@ -65,27 +62,18 @@ public class MatchService {
 
         Match match = new Match();
         match.setTournament(tournament);
-        match.setTeam1(team1);
-        match.setTeam2(team2);
+        match.setFirstTeam(team1);
+        match.setSecondTeam(team2);
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
-        match.setRoundNumber(request.getRoundNumber());
+        match.setBracketLevel(request.getBracketLevel());
         match.setMatchNumberInRound(request.getMatchNumberInRound());
         match.setStatus(Match.MatchStatus.SCHEDULED);
 
-        if (request.getPrevMatch1Id() != null) {
-            Match prevMatch1 = matchRepository.findById(request.getPrevMatch1Id())
-                    .orElseThrow(() -> new ResourceNotFoundException("Previous match", "ID", request.getPrevMatch1Id()));
-            match.setPrevMatch1(prevMatch1);
-        }
-        if (request.getPrevMatch2Id() != null) {
-            Match prevMatch2 = matchRepository.findById(request.getPrevMatch2Id())
-                    .orElseThrow(() -> new ResourceNotFoundException("Previous match", "ID", request.getPrevMatch2Id()));
-            match.setPrevMatch2(prevMatch2);
-        }
+        Match savedMatch = matchRepository.save(match);
 
-        match = matchRepository.save(match);
-        return match;
+        createInitialStatisticsForMatch(savedMatch);
+        return savedMatch;
     }
 
     public MatchResponse getMatchById(Long id) {
@@ -114,27 +102,37 @@ public class MatchService {
 
     @Transactional
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#id, #currentUserId)")
-    public MatchResponse updateMatch(Long id, MatchRequest request, Long currentUserId) {
+    public MatchResponse updateMatch(Long id, MatchUpdateRequest request, Long currentUserId) {
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", id));
 
+        Team oldWinner = match.getWinningTeam();
+
         match.setStartDatetime(request.getStartDatetime());
         match.setEndDatetime(request.getEndDatetime());
-        match.setRoundNumber(request.getRoundNumber());
-        match.setMatchNumberInRound(request.getMatchNumberInRound());
+        match.setFirstTeamScore(request.getFirstTeamScore());
+        match.setSecondTeamScore(request.getSecondTeamScore());
+        match.setStatus(request.getStatus());
 
-         if (request.getWinningTeamId() != null) {
-             Team winningTeam = teamRepository.findById(request.getWinningTeamId())
-                     .orElseThrow(() -> new ResourceNotFoundException("Winning team", "ID", request.getWinningTeamId()));
-             if (!winningTeam.equals(match.getTeam1()) && !winningTeam.equals(match.getTeam2())) {
-                 throw new BadRequestException("Winning team must be one of the participating teams in the match.");
-             }
-             match.setWinningTeam(winningTeam);
-         } else {
-             match.setWinningTeam(null);
-         }
+        Team newWinner = null;
+        if (request.getWinningTeamId() != null) {
+            newWinner = teamRepository.findById(request.getWinningTeamId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Winning team", "ID", request.getWinningTeamId()));
+            if (!newWinner.equals(match.getFirstTeam()) && !newWinner.equals(match.getSecondTeam())) {
+                throw new BadRequestException("Winning team must be one of the participating teams in the match.");
+            }
+            match.setWinningTeam(newWinner);
+        } else {
+            match.setWinningTeam(null);
+        }
 
         match = matchRepository.save(match);
+
+        boolean winnerHasChanged = !Objects.equals(oldWinner, newWinner);
+        if (winnerHasChanged) {
+            synchronizeNextMatchFor(match);
+        }
+
         return mapToMatchResponse(match);
     }
 
@@ -153,62 +151,115 @@ public class MatchService {
     }
 
     @Transactional
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizer(#matchId, #currentUserId)")
-    public MatchResponse saveMatchStatistics(Long matchId, List<MatchStatisticsRequest> statisticsRequests, Long currentUserId) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new ResourceNotFoundException("Match", "ID", matchId));
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tournamentService.isOrganizerForMatch(#matchId, #currentUserId)")
+    public MatchPlayerStatisticsResponse updateMatchStatistic(Long matchId, Long statisticId, MatchStatisticsRequest request, Long currentUserId) {
+        MatchStatistics statsToUpdate = matchStatisticsRepository.findById(statisticId)
+                .orElseThrow(() -> new ResourceNotFoundException("MatchStatistics", "ID", statisticId));
 
-        if (match.getStatus() != Match.MatchStatus.COMPLETED && match.getStatus() != Match.MatchStatus.IN_PROGRESS) {
-            throw new BadRequestException("Statistics can only be saved for completed or in-progress matches.");
+        if (!statsToUpdate.getMatch().getId().equals(matchId)) {
+            throw new BadRequestException("Statistic does not belong to the specified match.");
         }
 
-        Set<User> team1Players = match.getTeam1().getTeamMembers().stream().map(PlayerTeam::getUser).collect(Collectors.toSet());
-        Set<User> team2Players = match.getTeam2().getTeamMembers().stream().map(PlayerTeam::getUser).collect(Collectors.toSet());
+        int oldKills = statsToUpdate.getKills() != null ? statsToUpdate.getKills() : 0;
+        int oldDeaths = statsToUpdate.getDeaths() != null ? statsToUpdate.getDeaths() : 0;
+        int oldAssists = statsToUpdate.getAssists() != null ? statsToUpdate.getAssists() : 0;
 
-        for (MatchStatisticsRequest req : statisticsRequests) {
-            User player = userRepository.findById(req.getPlayerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Player", "ID", req.getPlayerId()));
+        statsToUpdate.setKills(request.getKills());
+        statsToUpdate.setDeaths(request.getDeaths());
+        statsToUpdate.setAssists(request.getAssists());
 
-            boolean isPlayerInMatchTeams = team1Players.contains(player) || team2Players.contains(player);
+        MatchStatistics updatedStats = matchStatisticsRepository.save(statsToUpdate);
 
-            if (!isPlayerInMatchTeams) {
-                throw new BadRequestException("Player " + player.getNickname() + " is not a member of teams participating in this match.");
-            }
+        recalculatePlayerOverallStatistics(
+                updatedStats.getPlayer(),
+                updatedStats.getMatch().getTournament().getGame(), oldKills, oldDeaths, oldAssists,
+                request.getKills(), request.getDeaths(), request.getAssists()
+        );
 
-            MatchStatistics matchStats = matchStatisticsRepository.findByMatchAndPlayer(match, player)
-                    .orElse(new MatchStatistics());
+        return new MatchPlayerStatisticsResponse(
+                updatedStats.getId(), updatedStats.getPlayer().getId(), updatedStats.getPlayer().getNickname(),
+                updatedStats.getKills(), updatedStats.getDeaths(), updatedStats.getAssists()
+        );
+    }
 
-            matchStats.setMatch(match);
-            matchStats.setPlayer(player);
-            matchStats.setKills(req.getKills());
-            matchStats.setDeaths(req.getDeaths());
-            matchStats.setAssists(req.getAssists());
-            matchStatisticsRepository.save(matchStats);
-
-            updatePlayerOverallStatistics(player, match.getTournament().getGame(), req.getKills(), req.getDeaths(), req.getAssists());
+    private void synchronizeNextMatchFor(Match processedMatch) {
+        Tournament tournament = processedMatch.getTournament();
+        int numTeams = tournament.getParticipatingTeams().size();
+        if (numTeams < 2) {
+            return;
         }
 
-        return mapToMatchResponse(matchRepository.findById(matchId).get());
+        int totalRounds = (int) (Math.log(numTeams) / Math.log(2));
+
+        //last match of tournament
+        if (processedMatch.getBracketLevel() >= totalRounds) {
+            return;
+        }
+
+        int partnerMatchNumber = (processedMatch.getMatchNumberInRound() % 2 == 1)
+                ? processedMatch.getMatchNumberInRound() + 1
+                : processedMatch.getMatchNumberInRound() - 1;
+
+        Match partnerMatch = matchRepository.findByTournamentAndBracketLevelAndMatchNumberInRound(
+                processedMatch.getTournament(), processedMatch.getBracketLevel(), partnerMatchNumber).orElse(null);
+
+        Team winnerOfProcessedMatch = processedMatch.getWinningTeam();
+        Team winnerOfPartnerMatch = (partnerMatch != null) ? partnerMatch.getWinningTeam() : null;
+
+        Team nextMatchFirstTeam = (processedMatch.getMatchNumberInRound() < partnerMatchNumber) ? winnerOfProcessedMatch : winnerOfPartnerMatch;
+        Team nextMatchSecondTeam = (processedMatch.getMatchNumberInRound() < partnerMatchNumber) ? winnerOfPartnerMatch : winnerOfProcessedMatch;
+
+        int nextBracketLevel = processedMatch.getBracketLevel() + 1;
+        int nextMatchNumberInRound = (processedMatch.getMatchNumberInRound() + 1) / 2;
+
+        Match nextMatch = matchRepository.findByTournamentAndBracketLevelAndMatchNumberInRound(
+                        processedMatch.getTournament(), nextBracketLevel, nextMatchNumberInRound)
+                .orElse(new Match());
+
+        if (nextMatch.getId() == null) {
+            nextMatch.setTournament(processedMatch.getTournament());
+            nextMatch.setBracketLevel(nextBracketLevel);
+            nextMatch.setMatchNumberInRound(nextMatchNumberInRound);
+            nextMatch.setStatus(Match.MatchStatus.SCHEDULED);
+            nextMatch.setStartDatetime(processedMatch.getEndDatetime() != null ? processedMatch.getEndDatetime().plusDays(1) : LocalDateTime.now().plusDays(1));
+        }
+
+        nextMatch.setFirstTeam(nextMatchFirstTeam);
+        nextMatch.setSecondTeam(nextMatchSecondTeam);
+
+        Match savedNextMatch = matchRepository.save(nextMatch);
+
+        createInitialStatisticsForMatch(savedNextMatch);
     }
 
     @Transactional
-    public void updatePlayerOverallStatistics(User player, Game game, Integer kills, Integer deaths, Integer assists) {
+    public void recalculatePlayerOverallStatistics(User player, Game game, int oldKills, int oldDeaths, int oldAssists, int newKills, int newDeaths, int newAssists) {
         PlayerStatistics playerStats = playerStatisticsRepository.findByPlayerAndGame(player, game)
-                .orElse(new PlayerStatistics());
+                .orElseThrow(() -> new IllegalStateException("PlayerStatistics should exist for player " + player.getId() + " in game " + game.getId()));
 
-        if (playerStats.getId() == null) {
-            playerStats.setPlayer(player);
-            playerStats.setGame(game);
-            playerStats.setKills(kills);
-            playerStats.setDeaths(deaths);
-            playerStats.setAssists(assists);
-            playerStats.setMatchesPlayed(1);
-        } else {
-            playerStats.setKills(playerStats.getKills() + kills);
-            playerStats.setDeaths(playerStats.getDeaths() + deaths);
-            playerStats.setAssists(playerStats.getAssists() + assists);
-            playerStats.setMatchesPlayed(playerStats.getMatchesPlayed() + 1);
-        }
+        playerStats.setKills(playerStats.getKills() - oldKills + newKills);
+        playerStats.setDeaths(playerStats.getDeaths() - oldDeaths + newDeaths);
+        playerStats.setAssists(playerStats.getAssists() - oldAssists + newAssists);
+
+        playerStatisticsRepository.save(playerStats);
+    }
+
+    @Transactional
+    private void updatePlayerMatchesPlayed(User player, Game game) {
+        PlayerStatistics playerStats = playerStatisticsRepository.findByPlayerAndGame(player, game)
+                .orElseGet(() -> {
+                    PlayerStatistics newStats = new PlayerStatistics();
+                    newStats.setPlayer(player);
+                    newStats.setGame(game);
+                    newStats.setKills(0);
+                    newStats.setDeaths(0);
+                    newStats.setAssists(0);
+                    newStats.setMatchesPlayed(0);
+                    return newStats;
+                });
+
+        playerStats.setMatchesPlayed(playerStats.getMatchesPlayed() + 1);
+
         playerStatisticsRepository.save(playerStats);
     }
     @Transactional
@@ -229,35 +280,48 @@ public class MatchService {
             throw new BadRequestException("Draws are not allowed. One team must win.");
         }
 
-        match.setScoreTeam1(scoreTeam1);
-        match.setScoreTeam2(scoreTeam2);
+        match.setFirstTeamScore(scoreTeam1);
+        match.setSecondTeamScore(scoreTeam2);
         match.setEndDatetime(LocalDateTime.now());
         match.setStatus(Match.MatchStatus.COMPLETED);
 
         Team winnerTeam;
         if (scoreTeam1 > scoreTeam2) {
-            winnerTeam = match.getTeam1();
+            winnerTeam = match.getFirstTeam();
         } else {
-            winnerTeam = match.getTeam2();
+            winnerTeam = match.getSecondTeam();
         }
         match.setWinningTeam(winnerTeam);
 
         Match savedMatch = matchRepository.save(match);
 
-        Optional<Match> nextMatchOptional = matchRepository.findByPrevMatch1OrPrevMatch2(savedMatch, savedMatch);
+        return mapToMatchResponse(savedMatch);
+    }
 
-        if (nextMatchOptional.isPresent()) {
-            Match nextMatch = nextMatchOptional.get();
-
-            if (nextMatch.getPrevMatch1() != null && nextMatch.getPrevMatch1().getId().equals(savedMatch.getId())) {
-                nextMatch.setTeam1(winnerTeam);
-            } else if (nextMatch.getPrevMatch2() != null && nextMatch.getPrevMatch2().getId().equals(savedMatch.getId())) {
-                nextMatch.setTeam2(winnerTeam);
-            }
-            matchRepository.save(nextMatch);
+    private void createInitialStatisticsForMatch(Match match) {
+        List<User> players = new ArrayList<>();
+        if (match.getFirstTeam() != null) {
+            players.addAll(getPlayersFromTeam(match.getFirstTeam()));
+        }
+        if (match.getSecondTeam() != null) {
+            players.addAll(getPlayersFromTeam(match.getSecondTeam()));
         }
 
-        return mapToMatchResponse(savedMatch);
+        for (User player : players) {
+            MatchStatistics stats = new MatchStatistics();
+            stats.setMatch(match);
+            stats.setPlayer(player);
+            stats.setKills(0);
+            stats.setDeaths(0);
+            stats.setAssists(0);
+            matchStatisticsRepository.save(stats);
+
+            updatePlayerMatchesPlayed(player, match.getTournament().getGame());
+        }
+    }
+
+    private List<User> getPlayersFromTeam(Team team) {
+        return team.getTeamMembers().stream().map(PlayerTeam::getUser).collect(Collectors.toList());
     }
 
     public void generateFirstRoundMatches(Tournament tournament) {
@@ -266,17 +330,17 @@ public class MatchService {
 
         LocalDateTime firstRoundStartTime = tournament.getStartDate().atStartOfDay();
 
-        int roundNumber = 1;
+        int bracketLevel = 1;
         for (int i = 0; i < participatingTeams.size(); i += 2) {
             Team team1 = participatingTeams.get(i);
             Team team2 = participatingTeams.get(i + 1);
 
             Match match = new Match();
             match.setTournament(tournament);
-            match.setTeam1(team1);
-            match.setTeam2(team2);
-            match.setRoundNumber(roundNumber);
             match.setMatchNumberInRound((i / 2) + 1);
+            match.setFirstTeam(team1);
+            match.setSecondTeam(team2);
+            match.setBracketLevel(bracketLevel);
             match.setStatus(Match.MatchStatus.SCHEDULED);
 
             match.setStartDatetime(firstRoundStartTime);
@@ -290,47 +354,62 @@ public class MatchService {
         response.setId(match.getId());
         response.setStartDatetime(match.getStartDatetime());
         response.setEndDatetime(match.getEndDatetime());
-        response.setRoundNumber(match.getRoundNumber());
+        response.setBracketLevel(match.getBracketLevel());
+        response.setFirstTeamScore(match.getFirstTeamScore());
         response.setMatchNumberInRound(match.getMatchNumberInRound());
-        response.setScoreTeam1(match.getScoreTeam1());
-        response.setScoreTeam2(match.getScoreTeam2());
+        response.setSecondTeamScore(match.getSecondTeamScore());
         response.setStatus(match.getStatus());
 
         if (match.getTournament() != null) {
             response.setTournamentId(match.getTournament().getId());
             response.setTournamentName(match.getTournament().getName());
         }
-        if (match.getTeam1() != null) {
-            response.setTeam1Id(match.getTeam1().getId());
-            response.setTeam1Name(match.getTeam1().getName());
+        if (match.getFirstTeam() != null) {
+            response.setFirstTeamId(match.getFirstTeam().getId());
+            response.setFirstTeamName(match.getFirstTeam().getName());
         }
-        if (match.getTeam2() != null) {
-            response.setTeam2Id(match.getTeam2().getId());
-            response.setTeam2Name(match.getTeam2().getName());
-        }
-        if (match.getPrevMatch1() != null) {
-            response.setPrevMatch1Id(match.getPrevMatch1().getId());
-        }
-        if (match.getPrevMatch2() != null) {
-            response.setPrevMatch2Id(match.getPrevMatch2().getId());
+        if (match.getSecondTeam() != null) {
+            response.setSecondTeamId(match.getSecondTeam().getId());
+            response.setSecondTeamName(match.getSecondTeam().getName());
         }
         if (match.getWinningTeam() != null) {
             response.setWinningTeamId(match.getWinningTeam().getId());
             response.setWinningTeamName(match.getWinningTeam().getName());
         }
 
-        List<MatchStatistics> matchStats = matchStatisticsRepository.findByMatch(match);
-        if (matchStats != null) {
-            response.setMatchStatistics(matchStats.stream()
-                    .map(ms -> new MatchPlayerStatisticsResponse(
-                            ms.getId(),
-                            ms.getPlayer().getId(),
-                            ms.getPlayer().getNickname(),
-                            ms.getKills(),
-                            ms.getDeaths(),
-                            ms.getAssists()))
-                    .collect(Collectors.toList()));
+        List<MatchStatistics> allMatchStats = matchStatisticsRepository.findByMatch(match);
+        Map<Long, MatchStatistics> statsByPlayerId = allMatchStats.stream()
+                .collect(Collectors.toMap(
+                        stat -> stat.getPlayer().getId(),
+                        stat -> stat,
+                        (existingValue, newValue) -> existingValue
+                ));
+
+        List<MatchPlayerStatisticsResponse> firstTeamStats = new ArrayList<>();
+        List<MatchPlayerStatisticsResponse> secondTeamStats = new ArrayList<>();
+
+        if (match.getFirstTeam() != null && match.getFirstTeam().getTeamMembers() != null) {
+            for (PlayerTeam playerTeam : match.getFirstTeam().getTeamMembers()) {
+                User player = playerTeam.getUser();
+                MatchStatistics stats = statsByPlayerId.get(player.getId());
+                firstTeamStats.add(new MatchPlayerStatisticsResponse(
+                        stats.getId(), player.getId(), player.getNickname(),
+                        stats.getKills(), stats.getDeaths(), stats.getAssists()));
+            }
         }
+
+        if (match.getSecondTeam() != null && match.getSecondTeam().getTeamMembers() != null) {
+            for (PlayerTeam playerTeam : match.getSecondTeam().getTeamMembers()) {
+                User player = playerTeam.getUser();
+                MatchStatistics stats = statsByPlayerId.get(player.getId());
+                secondTeamStats.add(new MatchPlayerStatisticsResponse(
+                        stats.getId(), player.getId(), player.getNickname(),
+                        stats.getKills(), stats.getDeaths(), stats.getAssists()));
+            }
+        }
+
+        response.setFirstTeamMatchStatistics(firstTeamStats);
+        response.setSecondTeamMatchStatistics(secondTeamStats);
 
         return response;
     }

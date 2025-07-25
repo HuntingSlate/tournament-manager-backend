@@ -10,8 +10,7 @@ import java.util.List;
 public class TournamentSpecification {
 
     public static Specification<Tournament> findByCriteria(
-            String name, String location, LocalDate startDate, LocalDate endDate,
-            String organizerNickname, String gameName, Tournament.TournamentStatus status) {
+            String name, String location, LocalDate startDate, LocalDate endDate, String gameName, Tournament.TournamentStatus status) {
 
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -26,10 +25,7 @@ public class TournamentSpecification {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("startDate"), startDate));
             }
             if (endDate != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("startDate"), endDate));
-            }
-            if (organizerNickname != null && !organizerNickname.isEmpty()) {
-                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("organizer").get("nickname")), "%" + organizerNickname.toLowerCase() + "%"));
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("endDate"), endDate));
             }
             if (gameName != null && !gameName.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("game").get("name")), "%" + gameName.toLowerCase() + "%"));

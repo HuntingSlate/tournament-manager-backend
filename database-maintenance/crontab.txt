@@ -1,0 +1,14 @@
+# Backup pełny w niedzielę o 3:00
+0 3 * * 0 /app/scripts/full_backup.sh >> /var/log/cron.log 2>&1
+
+# Backup różnicowy codziennie (oprócz niedzieli) o 3:00
+0 3 * * 1-6 /app/scripts/diff_backup.sh >> /var/log/cron.log 2>&1
+
+# Backup logu transakcyjnego
+0 10,14,18,22 * * * /app/scripts/log_backup.sh >> /var/log/cron.log 2>&1
+
+# Przebudowa indeksów 1. dnia każdego miesiąca o 4:00
+0 4 1 * * /app/scripts/index_rebuild.sh >> /var/log/cron.log 2>&1
+
+# Sprawdzanie integralności co dwa tygodnie (co 14 dni) o 4:00
+0 4 */14 * * /app/scripts/integrity_check.sh >> /var/log/cron.log 2>&1

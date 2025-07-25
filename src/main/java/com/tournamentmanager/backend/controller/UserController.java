@@ -1,6 +1,7 @@
 package com.tournamentmanager.backend.controller;
 
 import com.tournamentmanager.backend.dto.*;
+import com.tournamentmanager.backend.exception.ResourceNotFoundException;
 import com.tournamentmanager.backend.model.Team;
 import com.tournamentmanager.backend.model.User;
 import com.tournamentmanager.backend.service.TeamService;
@@ -21,11 +22,9 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
-    private final TeamService teamService;
 
-    public UserController(UserService userService, TeamService teamService) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.teamService = teamService;
     }
 
     @GetMapping("/me")
@@ -38,6 +37,9 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserProfile(@PathVariable Long id) {
         User user = userService.getUserById(id);
+        if(user.getStatus() == User.AccountStatus.INACTIVE){
+           throw new ResourceNotFoundException("User", "ID", id);
+        }
         return ResponseEntity.ok(userService.mapToUserResponse(user));
     }
 
@@ -93,18 +95,6 @@ public class UserController {
     public ResponseEntity<List<UserResponse>> searchUsers(
             @RequestParam(required = false) String nickname) {
         List<UserResponse> response = userService.searchUsersByNickname(nickname);
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/me/teams")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<TeamResponse>> getMyTeams(@AuthenticationPrincipal UserDetails currentUser) {
-        Long userId = userService.getUserIdByEmail(currentUser.getUsername());
-        List<Team> teams = userService.getTeamsForUser(userId);
-
-        List<TeamResponse> response = teams.stream()
-                .map(teamService::mapToTeamResponse)
-                .collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
 }

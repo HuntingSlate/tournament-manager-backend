@@ -1,0 +1,1 @@
+EXECUTE dbo.DatabaseBackup @Databases = 'USER_DATABASES', @Directory = '/var/opt/mssql/backup', @BackupType = 'LOG', @Compress = 'Y', @CleanupTime = 336;

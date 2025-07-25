@@ -13,6 +13,6 @@ import java.util.Optional;
 public interface PlayerTeamRepository extends JpaRepository<PlayerTeam, Long> {
     List<PlayerTeam> findByTeam(Team team);
     List<PlayerTeam> findByUser(User user);
-
+    long countByTeam(Team team);
     Optional<PlayerTeam> findByTeamAndUser(Team team, User user);
 }

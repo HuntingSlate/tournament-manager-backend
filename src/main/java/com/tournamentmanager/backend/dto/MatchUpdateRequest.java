@@ -11,18 +11,11 @@ import com.tournamentmanager.backend.model.Match;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MatchRequest {
-
-    @NotNull(message = "Tournament ID cannot be null")
-    private Long tournamentId;
-    private Long firstTeamId;
-    private Long secondTeamId;
+public class MatchUpdateRequest {
     @NotNull(message = "Start datetime cannot be null")
     private LocalDateTime startDatetime;
     private LocalDateTime endDatetime;
     private Long winningTeamId;
-    private Integer bracketLevel;
-    private Integer matchNumberInRound;
     private Integer firstTeamScore;
     private Integer secondTeamScore;
     private Match.MatchStatus status;

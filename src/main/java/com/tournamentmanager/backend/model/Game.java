@@ -1,5 +1,6 @@
 package com.tournamentmanager.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,6 +23,7 @@ public class Game {
     private String name;
 
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private Set<PlayerStatistics> playerStatistics;
 
 }

@@ -22,15 +22,15 @@ public class GameController {
     }
 
     @GetMapping
-    public ResponseEntity<List<GameResponse>> getAllGames() {
-        List<GameResponse> games = gameService.getAllGames();
+    public ResponseEntity<List<GameResponse>> getAllGames(@RequestParam(required = false) String name) {
+        List<GameResponse> games = gameService.getAllGames(name);
         return ResponseEntity.ok(games);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Game> getGameById(@PathVariable Long id) {
-        Game game = gameService.getGameById(id);
-        return ResponseEntity.ok(game);
+    public ResponseEntity<GameResponse> getGameById(@PathVariable Long id) {
+        GameResponse response = gameService.getGameDtoById(id);
+        return ResponseEntity.ok(response);
     }
 
     @PreAuthorize("hasRole('ADMIN')")

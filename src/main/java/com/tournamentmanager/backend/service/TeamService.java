@@ -161,12 +161,21 @@ public class TeamService {
             throw new ConflictException("User is already a member of this team.");
         }
 
+        if (playerTeamRepository.countByTeam(team) >= 5) {
+            throw new ConflictException("Max team size is 5");
+        }
+
+        if (newMember.getStatus() == User.AccountStatus.INACTIVE) {
+            throw new BadRequestException("Cannot add an inactive user to a team.");
+        }
 
         PlayerTeam playerTeam = new PlayerTeam();
         playerTeam.setTeam(team);
         playerTeam.setUser(newMember);
         playerTeam.setStartDate(LocalDate.now());
         playerTeamRepository.save(playerTeam);
+
+        team.getTeamMembers().add(playerTeam);
 
         return mapToTeamResponse(team);
     }
@@ -180,6 +189,12 @@ public class TeamService {
 
         boolean isTeamLeader = team.getLeader().getId().equals(currentUserId);
         boolean isRemovingSelf = memberToRemove.getId().equals(currentUserId);
+        boolean isInActiveTournament = team.getTournaments().stream()
+                .anyMatch(tournament -> tournament.getStatus() == Tournament.TournamentStatus.ACTIVE);
+
+        if(isInActiveTournament){
+            throw new BadRequestException("User cant leave team which is in ACTIVE tournament");
+        }
 
         if (!isTeamLeader && !isRemovingSelf) {
             throw new UnauthorizedException("Only the team leader or the member themselves can remove a member from this team.");
@@ -193,6 +208,8 @@ public class TeamService {
         }
 
         playerTeamRepository.delete(playerTeam);
+
+        team.getTeamMembers().remove(playerTeam);
 
         return mapToTeamResponse(team);
     }
@@ -430,6 +447,31 @@ public class TeamService {
         }
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamLeader(#teamId, #currentUserId)")
+    public List<TeamApplicationResponse> getTeamApplications(Long teamId, TeamApplication.ApplicationStatus status,Long currentUserId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ResourceNotFoundException("Team", "ID", teamId));
+
+        List<TeamApplication> applications = teamApplicationRepository.findByTeamAndStatus(team, status);
+
+        return applications.stream()
+                .map(this::mapToTeamApplicationResponse)
+                .collect(Collectors.toList());
+    }
+
+    private TeamApplicationResponse mapToTeamApplicationResponse(TeamApplication application) {
+        return new TeamApplicationResponse(
+                application.getId(),
+                application.getTeam().getId(),
+                application.getTeam().getName(),
+                application.getTournament().getId(),
+                application.getTournament().getName(),
+                application.getApplicationDate(),
+                application.getStatus()
+        );
     }
 
     private TeamMemberResponse mapToTeamMemberResponse(PlayerTeam playerTeam) {

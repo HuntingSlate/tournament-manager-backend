@@ -1,0 +1,1 @@
+EXECUTE dbo.DatabaseIntegrityCheck @Databases = 'USER_DATABASES';
